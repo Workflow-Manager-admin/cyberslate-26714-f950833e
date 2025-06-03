@@ -174,16 +174,16 @@ body {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--primary-bg);
-  background: linear-gradient(81deg, #282a32 67%, #23272e 100%);
+  background: linear-gradient(91deg, #1e180f 16%, #121215 100%);
   padding: 0 32px 0 30px;
-  border-bottom: 1.5px solid var(--border-color);
+  border-bottom: 2.5px solid #fff2;
   position: sticky;
   top: 0;
   z-index: 110;
-  box-shadow: var(--shadow-subtle);
+  box-shadow: 0 7px 24px 0 #000a, 0 7px 17px #ffae0022 inset, 0 2.8px 0 #fa0a;
   transition: box-shadow 0.18s;
   user-select: none;
+  background-blend-mode: lighten;
 }
 
 /* Topbar branding and logo */
