@@ -1,5 +1,6 @@
 import React from "react";
 import "./App.css";
+import Logo from "./Logo";
 
 // Navigation modules and icons
 const MODULES = [
@@ -23,8 +24,7 @@ function Sidebar({ onSelect, activeModule }) {
   return (
     <aside className="sidebar" aria-label="Main Navigation">
       <div className="sidebar-logo" tabIndex={0}>
-        <span className="sidebar-logo-symbol" aria-label="CyberRecon Suite logo" />
-        CyberRecon Suite
+        <Logo size={29} fontSize="1.19rem" hideText={false} gap={10} />
       </div>
       <nav className="sidebar-nav">
         {MODULES.map((mod) => (
@@ -42,6 +42,7 @@ function Sidebar({ onSelect, activeModule }) {
               textAlign: "left",
               cursor: "pointer",
               outline: "none",
+              fontFamily: "'Orbitron', 'Poppins', 'Inter', 'Segoe UI', Arial, sans-serif",
             }}
             onClick={() => onSelect(mod.name)}
           >
