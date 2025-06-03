@@ -190,7 +190,74 @@ const MODULE_COMPONENTS = {
             {sessionMode} Mode
           </span>
         </div>
-        <div style={{ margin: "18px 0 26px 0", maxWidth: 390 }}>
+        {/* BEGIN: API Key Requirements and Help */}
+        <div
+          style={{
+            background: "linear-gradient(99deg, #23272e 80%, #ff980015 100%)",
+            border: "1.6px solid #ff980077",
+            borderRadius: 12,
+            padding: "17px 18px 14px 18px",
+            boxShadow: "0 2px 13px 0 #19151216",
+            color: "#ffe9c4",
+            margin: "18px 0 19px 0",
+            maxWidth: 460
+          }}
+        >
+          <div style={{ fontWeight: 650, fontSize: "1.09em", marginBottom: 7, color: "#ffb65c" }}>
+            Which API Key is Required?
+          </div>
+          <div style={{ fontSize: "0.99em", color: "#fed798", marginBottom: 5, lineHeight: 1.42 }}>
+            <strong>To unlock the full Recon Dashboard (live subdomains, graphs, asset exports, and advanced integrations), you need an API key from a supported reconnaissance data provider:</strong>
+            <br />
+            <ul style={{ marginTop: 8, marginBottom: 7, paddingLeft: 22, color: "#ecd792", fontSize: "0.96em" }}>
+              <li>
+                <b>SecurityTrails</b> – Fast, accurate subdomains. {" "}
+                <a
+                  href="https://securitytrails.com/app/account/api"
+                  style={{ color: "#8fdce9", textDecoration: "underline" }}
+                  rel="noopener noreferrer" target="_blank"
+                >
+                  Get a key
+                </a>
+              </li>
+              <li>
+                <b>Shodan</b> – Find exposed hosts/assets.{" "}
+                <a
+                  href="https://account.shodan.io/register"
+                  style={{ color: "#8fdce9", textDecoration: "underline" }}
+                  rel="noopener noreferrer" target="_blank"
+                >
+                  Get a key
+                </a>
+              </li>
+              <li>
+                <b>Censys</b> – Asset mapping (IP, DNS, certs).{" "}
+                <a
+                  href="https://accounts.censys.io/self-service/register"
+                  style={{ color: "#8fdce9", textDecoration: "underline" }}
+                  rel="noopener noreferrer" target="_blank"
+                >
+                  Get a key
+                </a>
+              </li>
+              <li>
+                <b>Other compatible APIs:</b> Amass, BinaryEdge, etc. for further enhancements (see docs).
+              </li>
+            </ul>
+            <span style={{ color: "#a8d379" }}>
+              <b>Features unlocked with a valid key:</b><br />
+              • Live/real recon data and graphs<br />
+              • Subdomain/asset discovery<br />
+              • Exporting recon results<br />
+              • Batch and advanced integrations<br />
+            </span>
+          </div>
+          <div style={{ color: "#fed47b", fontSize: "0.96em", marginTop: 5, opacity: 0.89 }}>
+            <span style={{ color: "#ffd37c" }}>Tip:</span> To use SecurityTrails, paste your API key below. For Shodan or Censys, enter their respective keys (see <a href="https://docs.cyberrecon.app/api-setup" target="_blank" rel="noopener noreferrer" style={{ color: "#8fdce9" }}>API setup docs</a>).
+          </div>
+        </div>
+        {/* END: API Key Requirements and Help */}
+        <div style={{ margin: "0 0 26px 0", maxWidth: 390 }}>
           <label htmlFor="api-key-field"
             style={{
               fontWeight: 500,
