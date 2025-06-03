@@ -190,70 +190,89 @@ const MODULE_COMPONENTS = {
             {sessionMode} Mode
           </span>
         </div>
-        {/* BEGIN: API Key Requirements and Help */}
+        {/* BEGIN: API Key Requirements and Help (UPDATED, clearer instructions) */}
         <div
           style={{
             background: "linear-gradient(99deg, #23272e 80%, #ff980015 100%)",
             border: "1.6px solid #ff980077",
             borderRadius: 12,
-            padding: "17px 18px 14px 18px",
+            padding: "18px 20px 15px 19px",
             boxShadow: "0 2px 13px 0 #19151216",
             color: "#ffe9c4",
-            margin: "18px 0 19px 0",
-            maxWidth: 460
+            margin: "19px 0 20px 0",
+            maxWidth: 510
           }}
         >
-          <div style={{ fontWeight: 650, fontSize: "1.09em", marginBottom: 7, color: "#ffb65c" }}>
-            Which API Key is Required?
+          <div style={{ fontWeight: 680, fontSize: "1.11em", marginBottom: 7, color: "#ffb65c" }}>
+            <span role="img" aria-label="key" style={{ marginRight: 7 }}>🔑</span>
+            Recon Dashboard API Key Setup
           </div>
-          <div style={{ fontSize: "0.99em", color: "#fed798", marginBottom: 5, lineHeight: 1.42 }}>
-            <strong>To unlock the full Recon Dashboard (live subdomains, graphs, asset exports, and advanced integrations), you need an API key from a supported reconnaissance data provider:</strong>
+          <div style={{ fontSize: "1.01em", color: "#fed798", marginBottom: 7, lineHeight: 1.49 }}>
+            <strong>
+              The <b>Recon Dashboard</b> requires an API key to access live reconnaissance data.
+            </strong>
             <br />
-            <ul style={{ marginTop: 8, marginBottom: 7, paddingLeft: 22, color: "#ecd792", fontSize: "0.96em" }}>
+            <ul style={{ marginTop: 8, marginBottom: 8, paddingLeft: 22, color: "#ecd792", fontSize: "0.97em" }}>
               <li>
-                <b>SecurityTrails</b> – Fast, accurate subdomains. {" "}
+                <b>SecurityTrails API key</b> – <span style={{ color: "#d8a641" }}>Recommended</span> for fast, accurate subdomain discovery.<br />
                 <a
                   href="https://securitytrails.com/app/account/api"
                   style={{ color: "#8fdce9", textDecoration: "underline" }}
                   rel="noopener noreferrer" target="_blank"
                 >
-                  Get a key
+                  Obtain a SecurityTrails API key
                 </a>
               </li>
               <li>
-                <b>Shodan</b> – Find exposed hosts/assets.{" "}
+                <b>Shodan API key</b> – For discovering exposed hosts/devices.
+                {" "}
                 <a
                   href="https://account.shodan.io/register"
                   style={{ color: "#8fdce9", textDecoration: "underline" }}
                   rel="noopener noreferrer" target="_blank"
-                >
-                  Get a key
-                </a>
+                >Get a key</a>
               </li>
               <li>
-                <b>Censys</b> – Asset mapping (IP, DNS, certs).{" "}
+                <b>Censys API credentials</b> – For IP, DNS, and certificate reconnaissance.
+                {" "}
                 <a
                   href="https://accounts.censys.io/self-service/register"
                   style={{ color: "#8fdce9", textDecoration: "underline" }}
                   rel="noopener noreferrer" target="_blank"
-                >
-                  Get a key
-                </a>
+                >Register at Censys</a>
               </li>
               <li>
-                <b>Other compatible APIs:</b> Amass, BinaryEdge, etc. for further enhancements (see docs).
+                <span style={{ color: "#cfde8a" }}>
+                  <b>Other compatible APIs:</b> Amass, BinaryEdge, etc. (optional, see docs).
+                </span>
               </li>
             </ul>
             <span style={{ color: "#a8d379" }}>
-              <b>Features unlocked with a valid key:</b><br />
-              • Live/real recon data and graphs<br />
-              • Subdomain/asset discovery<br />
-              • Exporting recon results<br />
-              • Batch and advanced integrations<br />
+              <b>What does an API key unlock?</b>
+              <br />
+              – Live, up-to-date reconnaissance results (vs sample/demo-only data)<br />
+              – Automatic subdomain/asset discovery<br />
+              – Graph and table visualization features<br />
+              – CSV/JSON export, batch processing, advanced API integrations<br />
             </span>
           </div>
-          <div style={{ color: "#fed47b", fontSize: "0.96em", marginTop: 5, opacity: 0.89 }}>
-            <span style={{ color: "#ffd37c" }}>Tip:</span> To use SecurityTrails, paste your API key below. For Shodan or Censys, enter their respective keys (see <a href="https://docs.cyberrecon.app/api-setup" target="_blank" rel="noopener noreferrer" style={{ color: "#8fdce9" }}>API setup docs</a>).
+          <div style={{ color: "#fed47b", fontSize: "0.96em", marginTop: 2, opacity: 0.91 }}>
+            <strong>How to get your API key:</strong> <span style={{ color: "#ffd37c" }}>Sign up or login to the provider above.</span> 
+            <br />
+            For SecurityTrails: visit <a href="https://securitytrails.com/app/account/api" target="_blank" rel="noopener noreferrer" style={{ color: "#8fdce9" }}>your API dashboard</a>.<br />
+            <span style={{ color: "#a6eaa3" }}>
+              Paste your key below to enable Pro features in the Recon Dashboard.
+            </span>
+            <br />
+            For other setup information, see the 
+            {" "}
+            <a href="https://docs.cyberrecon.app/api-setup" target="_blank" rel="noopener noreferrer" style={{ color: "#8fdce9" }}>
+              CyberRecon API Setup Guide
+            </a>.
+          </div>
+          <div style={{ color: "#fed773", fontSize: "0.94em", marginTop: 8 }}>
+            <span style={{ color: "#dbdb99" }}>Demo Mode</span> uses only sample data.
+            <b> Pro Mode (API Key required)</b> unlocks full, real-time data.
           </div>
         </div>
         {/* END: API Key Requirements and Help */}
@@ -275,7 +294,7 @@ const MODULE_COMPONENTS = {
               id="api-key-field"
               type={showApiKey ? "text" : "password"}
               value={apiKey}
-              placeholder="Enter your API key"
+              placeholder="Enter your API key (SecurityTrails, Shodan, etc.)"
               autoComplete="off"
               spellCheck={false}
               style={{
@@ -320,7 +339,7 @@ const MODULE_COMPONENTS = {
             Your API key is stored in your browser only.<br />
             It is never sent anywhere unless required for API calls.<br />
             <span style={{ color: "#a8d379" }}>
-              Needed for Pro/3rd-party integrations.
+              Needed for Pro mode and real-time integrations.
             </span>
           </div>
         </div>
