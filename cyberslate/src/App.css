@@ -348,15 +348,17 @@ body {
 
 .content-area {
   flex: 1 1 0%;
-  background: radial-gradient(ellipse 120% 110% at 55% 35%, #22252b 81%, #181a20 97%);
+  background: radial-gradient(ellipse 130% 116% at 68% 41%, #141217 79%, #181a20 97%);
+  background-color: #060709;
   padding: 38px 43px 28px 45px;
   overflow-y: auto;
   margin: 0;
   min-height: calc(100vh - var(--topbar-height));
   border-radius: 0 0 19px 19px;
-  box-shadow: 0 3px 16px 0 #1a1a1a08;
-  font-size: 1.06em;
-  transition: background 0.22s;
+  box-shadow: 0 5px 40px 0 #ffae0009, 0 1.5px 0 #0e0e1fad;
+  font-size: 1.08em;
+  transition: background 0.22s, box-shadow 0.21s;
+  border-top: 1.5px solid #ffae001a;
 }
 
 .content-area h2, .content-area h3 {
