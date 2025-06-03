@@ -174,18 +174,25 @@ const MODULE_COMPONENTS = {
     // For UX/security, let users toggle visibility
     const [showApiKey, setShowApiKey] = React.useState(false);
 
-    // Provider selection: Local state to sync with AppContext/localStorage if missing
+    // Provider selection options
     const PROVIDER_OPTIONS = [
       { value: "hackertarget", label: "HackerTarget (Free, High-Capacity)" },
       { value: "googledns", label: "Google DNS over HTTPS" }
     ];
 
-    // If reconProvider doesn't exist (legacy users), default to 'hackertarget'
+    // Ensure reconProvider is always initialized from localStorage or default
     useEffect(() => {
       if (!reconProvider) {
         setReconProvider(window.localStorage.getItem("reconProvider") || "hackertarget");
       }
     }, [reconProvider, setReconProvider]);
+
+    // Whenever provider changes, persist to localStorage
+    useEffect(() => {
+      if (reconProvider) {
+        window.localStorage.setItem("reconProvider", reconProvider);
+      }
+    }, [reconProvider]);
 
     return (
       <div>
@@ -225,11 +232,13 @@ const MODULE_COMPONENTS = {
               </li>
             </ul>
           </div>
-          {/* Provider radio group */}
+          {/* Provider selection as radio group */}
           <div role="radiogroup" aria-label="Recon Provider" style={{ display: "flex", gap: 25, marginBottom: 4 }}>
             {PROVIDER_OPTIONS.map(opt => (
               <label key={opt.value} style={{
-                display: "flex", alignItems: "center", gap: 9,
+                display: "flex",
+                alignItems: "center",
+                gap: 9,
                 fontWeight: reconProvider === opt.value ? 700 : 520,
                 color: reconProvider === opt.value ? "#ffd700" : "#b8eae6",
                 background: reconProvider === opt.value ? "#23272e" : "transparent",
@@ -244,14 +253,13 @@ const MODULE_COMPONENTS = {
                   name="reconProvider"
                   value={opt.value}
                   checked={reconProvider === opt.value}
-                  onChange={e => {
-                    setReconProvider(opt.value);
-                    window.localStorage.setItem("reconProvider", opt.value);
-                  }}
+                  onChange={() => setReconProvider(opt.value)}
                   style={{
                     accentColor: "#38deff",
-                    width: 18, height: 18,
-                    marginRight: 6, marginLeft: 0
+                    width: 18,
+                    height: 18,
+                    marginRight: 6,
+                    marginLeft: 0
                   }}
                 />
                 {opt.label}
