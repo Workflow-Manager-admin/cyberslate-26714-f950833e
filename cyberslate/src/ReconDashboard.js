@@ -13,6 +13,7 @@ import { AppContext } from "./App";
  *   - Export to CSV/JSON (with full headers, not in Demo)
  *   - UX adapts to Demo/Pro, blocks export in Demo, rich feedback for all states
  *   - Handles all feedback requirements: missing/invalid key, quota, sync UI
+ * Now uses reconProvider from AppContext to select between HackerTarget and Google DNS for lookup modules.
  */
 
 const DEMO_DATA = [
