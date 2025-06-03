@@ -43,6 +43,11 @@ function App() {
   const [apiKey, setApiKeyInternal] = useState(() => {
     return window.localStorage.getItem("apiKey") || "";
   });
+  // Track if key is an app-generated demo key (so we can show the yellow indicator)
+  const [isDemoApiKey, setIsDemoApiKey] = useState(() => {
+    // true if localStorage key is generated, false if user-supplied or empty
+    return window.localStorage.getItem("isDemoApiKey") === "true";
+  });
 
   // Save sessionMode on change
   useEffect(() => {
