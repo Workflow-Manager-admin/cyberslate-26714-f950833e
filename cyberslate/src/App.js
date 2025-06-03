@@ -29,20 +29,42 @@ const MODULES = [
   { name: "Settings", icon: "⚙️" },
 ];
 
-// PUBLIC_INTERFACE
+/**
+ * PUBLIC_INTERFACE
+ * App component manages sessionMode, API key, and propagates via AppContext.
+ */
 function App() {
   // Session (Demo/Pro); initialize from localStorage else default to Demo
   const [sessionMode, setSessionMode] = useState(() => {
     return window.localStorage.getItem("sessionMode") || "Demo";
   });
 
+  // API Key, securely loaded from localStorage if present
+  const [apiKey, setApiKeyInternal] = useState(() => {
+    return window.localStorage.getItem("apiKey") || "";
+  });
+
+  // Save sessionMode on change
   useEffect(() => {
     window.localStorage.setItem("sessionMode", sessionMode);
   }, [sessionMode]);
 
+  // Save apiKey on change (persist immediately for all modules)
+  useEffect(() => {
+    if (apiKey !== undefined) {
+      window.localStorage.setItem("apiKey", apiKey || "");
+    }
+  }, [apiKey]);
+
+  // Setter exposed to context (if you want to do further sanitization, add here)
+  const setApiKey = (key) => {
+    setApiKeyInternal(key);
+    // (Will be saved via useEffect)
+  };
+
   // Tabs state: array of { name, icon }
   const [openTabs, setOpenTabs] = useState([
-    MODULES[0], // Recon is always open to start
+    MODULES[0],
   ]);
   // Active tab: string of module name
   const [activeTab, setActiveTab] = useState("Recon");
