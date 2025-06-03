@@ -38,26 +38,18 @@ function TabBar({ openTabs, activeTab, onSwitch, onClose }) {
           style={{
             display: "flex",
             alignItems: "center",
-            color:
-              activeTab === tab.name
-                ? "var(--accent)"
-                : "var(--text-secondary)",
-            background:
-              activeTab === tab.name ? "rgba(255,152,0,0.07)" : "none",
-            borderBottom:
-              activeTab === tab.name
-                ? "3px solid var(--accent)"
-                : "3px solid transparent",
-            fontWeight: 600,
-            fontSize: "1.02rem",
-            padding: "0 22px 0 14px",
-            height: 38,
-            marginRight: 2,
-            borderRadius: "9px 9px 0 0",
+            fontWeight: 700,
+            fontSize: "1.08rem",
+            padding: "0 27px 0 15px",
+            height: 39,
+            minWidth: 99,
+            marginRight: 0,
             position: "relative",
             outline: "none",
             cursor: "pointer",
-            transition: "all 0.14s",
+            background: "none",
+            boxShadow: "none",
+            border: "none"
           }}
           onClick={() => onSwitch(tab.name)}
           onKeyDown={(e) => {
@@ -73,10 +65,10 @@ function TabBar({ openTabs, activeTab, onSwitch, onClose }) {
             }
           }}
         >
-          <span style={{ fontSize: "1.15em", marginRight: 9 }}>
+          <span style={{ fontSize: "1.19em", marginRight: 11, transition: "transform 0.21s" }}>
             {tab.icon}
           </span>
-          <span style={{ maxWidth: 115, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+          <span style={{ maxWidth: 115, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", letterSpacing: "0.01em" }}>
             {tab.name}
           </span>
           {tab.name !== "Recon" && (
@@ -84,25 +76,14 @@ function TabBar({ openTabs, activeTab, onSwitch, onClose }) {
               className="tabbar-close-btn"
               tabIndex={0}
               aria-label={`Close ${tab.name}`}
-              style={{
-                marginLeft: 7,
-                color: "var(--text-secondary)",
-                background: "none",
-                border: "none",
-                fontSize: "1.16em",
-                cursor: "pointer",
-                outline: "none",
-                opacity: 0.5,
-                transition: "opacity 0.16s",
-              }}
               onClick={(e) => {
                 e.stopPropagation();
                 onClose(tab.name);
               }}
               onFocus={(e) => (e.target.style.opacity = "1")}
-              onBlur={(e) => (e.target.style.opacity = "0.5")}
+              onBlur={(e) => (e.target.style.opacity = "0.56")}
               onMouseEnter={(e) => (e.target.style.opacity = "1")}
-              onMouseLeave={(e) => (e.target.style.opacity = "0.5")}
+              onMouseLeave={(e) => (e.target.style.opacity = "0.56")}
             >
               ×
             </button>
