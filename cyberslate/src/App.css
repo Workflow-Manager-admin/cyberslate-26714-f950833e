@@ -110,32 +110,38 @@ body {
 
 /* Sidebar Link Animations & Styles */
 .sidebar-link {
-  padding: 12px 28px 12px 32px;
+  padding: 13px 28px 13px 36px;
   font-size: 1.13rem;
   color: var(--text-secondary);
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 560;
   border-left: 4px solid transparent;
-  border-radius: 6px 16px 16px 0;
+  border-radius: 7px 15px 15px 0;
   background: none;
-  transition: color 0.23s, background 0.17s, border-color 0.19s,
-    box-shadow 0.2s, transform 0.2s;
+  letter-spacing: .02em;
+  filter: drop-shadow(0 1px 5px #12000730);
+  transition: 
+    color 0.23s, background 0.15s, border-color 0.19s,
+    box-shadow 0.18s, transform 0.18s;
   outline: none;
   box-shadow: none;
   position: relative;
+  border-right: 0px;
 }
 .sidebar-link:focus-visible,
 .sidebar-link.active {
-  color: #fff;
-  background: linear-gradient(80deg, #23272ecc 75%, #ff980014 100%);
+  color: #fff9ce;
+  background: linear-gradient(85deg, #191317dd 79%, #22180560 100%);
   border-left: 4px solid var(--accent);
-  box-shadow: 0 2px 12px 0 #ff980014;
-  transform: scale(1.038) translateX(2px);
+  box-shadow: 0 6px 16px 0 #ff98001b, 0 2px 19px #ffae003a;
+  transform: scale(1.06) translateX(4px);
+  text-shadow: 0 0 7px #ffae0039;
 }
 .sidebar-link:hover:not(.active) {
   color: var(--accent);
-  background: linear-gradient(82deg, #23272eaa 57%, #ff98001a 100%);
-  border-left: 4px solid #ff980064;
+  background: linear-gradient(79deg, #17181ede 60%, #ff99001b 100%);
+  border-left: 4px solid #ff98008a;
+  box-shadow: 0 0 10px #ff980040;
 }
 
 /* SIDEBAR MODULE ICONS */
