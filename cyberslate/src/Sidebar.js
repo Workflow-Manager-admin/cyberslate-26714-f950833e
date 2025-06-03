@@ -23,7 +23,8 @@ function Sidebar({ onSelect, activeModule }) {
   return (
     <aside className="sidebar" aria-label="Main Navigation">
       <div className="sidebar-logo" tabIndex={0}>
-        <span className="sidebar-logo-symbol">⚡</span>CyberSlate
+        <span className="sidebar-logo-symbol" aria-label="CyberRecon Suite logo" />
+        CyberRecon Suite
       </div>
       <nav className="sidebar-nav">
         {MODULES.map((mod) => (
@@ -44,7 +45,7 @@ function Sidebar({ onSelect, activeModule }) {
             }}
             onClick={() => onSelect(mod.name)}
           >
-            <span aria-hidden="true" style={{ marginRight: 12 }}>
+            <span aria-hidden="true" style={{ marginRight: 13 }}>
               {mod.icon}
             </span>
             <span>{mod.name}</span>

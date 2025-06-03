@@ -71,7 +71,8 @@ function App() {
       <div className="main-layout">
         <header className="topbar">
           <div className="topbar-brand">
-            <span className="topbar-accent">⚡</span>CyberSlate
+            <span className="topbar-logo-symbol" aria-label="CyberRecon Suite logo" />
+            CyberRecon Suite
           </div>
           <div className="topbar-session">
             Session: <span style={{ color: "var(--accent)" }}>Demo User</span>
