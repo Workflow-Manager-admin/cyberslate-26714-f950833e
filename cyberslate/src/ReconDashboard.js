@@ -350,16 +350,27 @@ function ReconDashboard({ sessionMode }) {
     setDomainList(to_scan);
 
     if (!to_scan.length) {
-      setErrorMsg("Please enter at least one valid domain (separated by lines, commas or spaces).");
+      setErrorMsg(
+        "Please enter at least one valid domain (separated by lines, commas, spaces, or newlines)."
+      );
       setResults([]);
       setShowExport(false);
       return;
     }
 
-    // Pro mode: API key required for third party API providers, but not for HackerTarget or Google DNS
-    if (sessionMode === "Pro" && !apiKey && !["hackertarget", "googledns"].includes(reconProvider)) {
-      setErrorMsg("API key required. Please enter your key in Settings then retry.");
-      setFeedback({type:"error", text: "API key missing. Enter your key to unlock Pro features."});
+    // For premium API (not hackertarget/googledns), require API key
+    if (
+      sessionMode === "Pro" &&
+      !apiKey &&
+      !["hackertarget", "googledns"].includes(reconProvider)
+    ) {
+      setErrorMsg(
+        "API key required. Please enter your key in Settings then retry."
+      );
+      setFeedback({
+        type: "error",
+        text: "API key missing. Enter your key to unlock Pro features.",
+      });
       setResults([]);
       setShowExport(false);
       return;
@@ -368,181 +379,181 @@ function ReconDashboard({ sessionMode }) {
     // Reset all results, and mark all as loading
     setResults([]);
     let recLoading = {};
-    to_scan.forEach(domain => recLoading[domain]=true);
+    to_scan.forEach((domain) => (recLoading[domain] = true));
     setLoadingMap(recLoading);
 
-    // Demo: Use local results with some variety
+    // Demo: Use local demo data
     if (sessionMode === "Demo") {
       let fake = to_scan.map((d, idx) => {
         let variant = DEMO_DATA[idx % DEMO_DATA.length];
         return {
           ...variant,
           domain: d,
-          data: { ...variant.data, domain: d, summary: (variant.data.summary||"").replace(variant.domain||"", d)},
+          data: {
+            ...variant.data,
+            domain: d,
+            summary: (variant.data.summary || "").replace(
+              variant.domain || "",
+              d
+            ),
+          },
           status: "Demo",
           error: "",
-          quota: idx>=2 ? "Demo: Only 2 full domains at a time." : ""
+          quota: idx >= 2 ? "Demo: Only 2 full domains at a time." : "",
         };
       });
-      for(let i=0;i<fake.length;i++) { await sleep(400 + i*170);}
+      for (let i = 0; i < fake.length; i++) {
+        await sleep(350 + i * 110);
+      }
       setResults(fake);
       setLoadingMap({});
       setShowExport(false);
-      setFeedback({type:"warning",text:"Demo mode shows sample data only. Export and live recon are unlocked in Pro mode."});
+      setFeedback({
+        type: "warning",
+        text:
+          "Demo mode shows sample data only. Export and live recon are unlocked in Pro mode.",
+      });
       return;
     }
 
-    // Pro mode: Real queries - provider selection via reconProvider
+    // --- Provider selection: HackerTarget or Google DNS ---
     let allResults = [];
-
     await Promise.all(
       to_scan.map(async (domain, idx) => {
-        setLoadingMap(lmap => ({ ...lmap, [domain]: true }));
-        let result = {domain, data:null, status:"", error:"", quota:""};
+        setLoadingMap((lmap) => ({ ...lmap, [domain]: true }));
+        let result = {
+          domain,
+          data: null,
+          status: "",
+          error: "",
+          quota: "",
+        };
+
         try {
-          // Recon provider selection (no API key for HACKERTARGET/GOOGLEDNS)
           if (reconProvider === "hackertarget") {
-            // https://api.hackertarget.com/hostsearch/?q=example.com (subdomains, CSV)
-            // https://api.hackertarget.com/dnslookup/?q=example.com
-            // We'll use hostsearch (CSV: subdomain,IP per line)
-            const url = `https://api.hackertarget.com/hostsearch/?q=${encodeURIComponent(domain)}`;
+            // HackerTarget: hostsearch (subdomain recon, free/no key)
+            const url = `https://api.hackertarget.com/hostsearch/?q=${encodeURIComponent(
+              domain
+            )}`;
             const resp = await fetch(url);
             if (!resp.ok) {
               result.status = "Error";
               result.error = `HackerTarget: HTTP ${resp.status}`;
+              setFeedback({
+                type: "error",
+                text: `Network error from HackerTarget (${resp.status})`,
+              });
             } else {
               const txt = await resp.text();
-              if (txt.startsWith("API count exceeded")) {
+              if (
+                txt.startsWith("API count exceeded") ||
+                /API count exceeded/i.test(txt)
+              ) {
                 result.status = "Quota Exceeded";
                 result.quota = "HackerTarget daily limit exceeded.";
-                setFeedback({type:"warning", text:`API quota/limit exceeded for ${domain} on HackerTarget.`});
+                setFeedback({
+                  type: "warning",
+                  text: `API quota/limit exceeded for ${domain} on HackerTarget.`,
+                });
               } else if (/no records found/i.test(txt) || !txt.trim()) {
                 result.status = "No Results";
-                result.data = { summary: "No subdomains found by HackerTarget for this domain.", hosts: [], openPorts: [] };
+                result.data = {
+                  summary:
+                    "No subdomains found by HackerTarget for this domain.",
+                  hosts: [],
+                  openPorts: [],
+                };
               } else {
-                const hosts = txt.trim().split("\n").map(row => row.split(",")[0]);
+                // Parse CSV: subdomain,IP (per line)
+                const rows = txt
+                  .trim()
+                  .split("\n")
+                  .map((row) => row.split(",")[0])
+                  .filter((x) => x && typeof x === "string");
                 result.status = "Success";
                 result.data = {
-                  summary: `Found ${hosts.length} subdomains via HackerTarget`,
-                  hosts, openPorts: [], fromProvider: "HackerTarget"
+                  summary: `Found ${rows.length} subdomain(s) via HackerTarget.`,
+                  hosts: rows,
+                  openPorts: [],
+                  fromProvider: "HackerTarget",
                 };
               }
             }
-          }
-          else if (reconProvider === "googledns") {
-            // Google DNS over HTTPS API: https://dns.google/resolve?name=DOMAIN
-            const url = `https://dns.google/resolve?name=${encodeURIComponent(domain)}`;
+          } else if (reconProvider === "googledns") {
+            // Google DNS: return DNS records for the domain, type=ANY
+            const url = `https://dns.google/resolve?name=${encodeURIComponent(
+              domain
+            )}&type=ANY`;
             const resp = await fetch(url);
             if (!resp.ok) {
               result.status = "Error";
               result.error = `Google DNS: HTTP ${resp.status}`;
+              setFeedback({
+                type: "error",
+                text: `Network error from Google DNS (${resp.status})`,
+              });
             } else {
               const data = await resp.json();
               let hosts = [];
+              let rrTypes = [];
               if (data?.Answer) {
-                hosts = data.Answer.map(a => a.data).filter(h => typeof h === "string");
+                hosts = data.Answer.map((a) => a.data).filter(
+                  (h) => typeof h === "string"
+                );
+                rrTypes = data.Answer.map((a) => a.type).filter(Boolean);
               }
-              result.status = "Success";
-              result.data = {
-                summary: `${hosts.length} DNS record(s) found by Google DNS over HTTPS.`,
-                hosts, openPorts: [], fromProvider: "GoogleDNS"
-              };
               if (!hosts.length) {
                 result.status = "No Results";
-                result.data = { summary: "No DNS records found by Google DNS.", hosts: [], openPorts: [] };
-              }
-            }
-          }
-          // If user has a SecurityTrails API Key and a provider is not hackertarget/googledns
-          else {
-            /**
-             * Attempts to detect API provider by the apiKey pattern or allow override.
-             * Returns {provider: 'securitytrails'|'shodan'|'censys'|'unknown', endpoint, headers callback}
-             * For now, default to SecurityTrails if pattern matches, otherwise unknown.
-             */
-            function detectProvider(apiKey) {
-              if (/^[a-z0-9]{40}$/i.test(apiKey)) {
-                return {
-                  provider: "securitytrails",
-                  endpoint: (domain) => `https://api.securitytrails.com/v1/domain/${encodeURIComponent(domain)}/subdomains`,
-                  headers: (key) => ({
-                    "Content-Type": "application/json",
-                    "Accept": "application/json",
-                    "APIKEY": key,
-                  }),
-                  process: async (resp, domain) => {
-                    if (!resp.ok)
-                      throw new Error(`SecurityTrails error: ${resp.status} ${resp.statusText}`);
-                    const data = await resp.json();
-                    if (!data || !Array.isArray(data.subdomains)) throw new Error("Malformed response");
-                    return {
-                      summary: `Found ${data.subdomains.length} subdomains via SecurityTrails`,
-                      hosts: data.subdomains.map(sub => `${sub}.${domain}`),
-                      openPorts: [],
-                      fromProvider: "SecurityTrails"
-                    };
-                  }
+                result.data = {
+                  summary: "No DNS records found by Google DNS for this domain.",
+                  hosts: [],
+                  openPorts: [],
+                };
+              } else {
+                result.status = "Success";
+                result.data = {
+                  summary: `${hosts.length} DNS record(s) found via Google DNS.`,
+                  hosts,
+                  openPorts: [],
+                  recordTypes: rrTypes,
+                  fromProvider: "GoogleDNS",
                 };
               }
-              return {
-                provider: "unknown",
-                endpoint: (domain) => null,
-                headers: (key) => ({}),
-                process: async () => { throw new Error("Unknown or unsupported API key/provider for direct client-side recon."); }
-              };
             }
-            const providerInfo = detectProvider(apiKey);
-            if (providerInfo.provider === "unknown") {
-              result.status = "Error";
-              result.error = "API key not recognized or unsupported for direct browser integration. Please use a SecurityTrails API key.";
-              setFeedback({type:"error", text:"Unknown or unsupported API provider for direct integration. Only SecurityTrails is supported in this build."});
-            } else if (providerInfo.provider === "securitytrails") {
-              const resp = await fetch(providerInfo.endpoint(domain),
-                { headers: providerInfo.headers(apiKey) }
-              );
-              if (resp.status === 401 || resp.status === 403) {
-                result.status = "Auth Error";
-                result.error = "API key invalid or expired.";
-                result.quota = "";
-                setFeedback({type:"error", text: `API key rejected by SecurityTrails (domain: ${domain}).`});
-              } else if (resp.status === 429) {
-                result.status = "Quota Exceeded";
-                result.quota = "SecurityTrails quota exceeded";
-                setFeedback({type:"warning", text:`API quota/limit exceeded for ${domain}.`});
-              } else if (!resp.ok) {
-                result.status = "Error";
-                result.error = `Recon failed: ${resp.status} ${resp.statusText}`;
-                setFeedback({type:"error", text:`Recon failed for ${domain} (${resp.status}).`});
-              } else {
-                try {
-                  result.status = "Success";
-                  result.data = await providerInfo.process(resp, domain);
-                } catch(e) {
-                  result.status = "Malformed";
-                  result.error = "Malformed/empty API response.";
-                }
-              }
-            }
+          } else {
+            // For future: other APIs (SecurityTrails, etc). Not covered in this task.
+            result.status = "Error";
+            result.error =
+              "Selected provider is not supported in this build.";
+            setFeedback({
+              type: "error",
+              text: "Unknown/unsupported recon provider selection.",
+            });
           }
         } catch (ex) {
           result.status = "Error";
           result.error = ex?.message || "Unknown recon error.";
-          setFeedback({type:"error", text:`Recon error for ${domain}: ${result.error}`});
+          setFeedback({
+            type: "error",
+            text: `Recon error for ${domain}: ${result.error}`,
+          });
         }
         allResults.push(result);
-        setResults(lst => {
-          // Insert/replace by domain (preserve order, avoid dupes)
-          let n = lst.filter(x => x.domain !== domain);
+        setResults((lst) => {
+          let n = lst.filter((x) => x.domain !== domain);
           return [...n, result];
         });
-        setLoadingMap(lmap => ({ ...lmap, [domain]: false }));
+        setLoadingMap((lmap) => ({ ...lmap, [domain]: false }));
       })
     );
 
     setLoadingMap({});
     setShowExport(true);
-    if(allResults.filter(x=>x.status==="Success").length === to_scan.length) {
-      setFeedback({type:"success", text:"Recon completed successfully!"});
+    if (
+      allResults.filter((x) => x.status === "Success").length ===
+      to_scan.length
+    ) {
+      setFeedback({ type: "success", text: "Recon completed successfully!" });
     }
   }
 
