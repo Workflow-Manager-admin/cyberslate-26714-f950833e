@@ -260,19 +260,20 @@ body {
 .session-btn:focus-visible,
 .session-btn:focus,
 .session-btn:hover {
-  border: 2px solid var(--accent);
+  border: 2.2px solid var(--accent);
   background: var(--accent-gradient);
   color: #23272e;
   font-weight: 700;
-  box-shadow: 0 2px 8px 0 #ff98003c;
+  box-shadow: 0 2.8px 12px 0 #ffb94f4a;
+  filter: brightness(1.09) drop-shadow(0 2px 7px #ff980049);
 }
 
 .session-btn[aria-pressed="true"] {
-  border: 2px solid var(--accent);
+  border: 2.4px solid var(--accent);
   background: var(--accent-gradient);
   color: #23272e;
-  font-weight: 700;
-  box-shadow: 0 4px 8px 0 #ff980032;
+  font-weight: 760;
+  box-shadow: 0 5px 15px 0 #ffb94f32;
 }
 
 /* TABBAR */
