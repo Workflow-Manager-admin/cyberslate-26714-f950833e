@@ -1,15 +1,15 @@
 :root {
-  --primary-bg: linear-gradient(135deg, #23272e 65%, #252921 100%);
-  --secondary-bg: #181a20;
-  --accent: #ff9800;
-  --accent-gradient: linear-gradient(90deg, #ff9800, #ffb94f 89%);
-  --text-color: #f5f7fa;
-  --text-secondary: rgba(245, 247, 250, 0.7);
-  --border-color: rgba(255, 255, 255, 0.09);
+  --primary-bg: linear-gradient(135deg, #111215 75%, #19191c 100%);
+  --secondary-bg: #090a0d;
+  --accent: #ffa733;
+  --accent-gradient: linear-gradient(92deg, #ff8800 12%, #ffad42 94%);
+  --text-color: #fcfeff;
+  --text-secondary: rgba(220, 244, 255, 0.66);
+  --border-color: rgba(255, 255, 255, 0.035);
   --sidebar-width: 238px;
   --topbar-height: 62px;
-  --shadow-elevated: 0 6px 24px 0 rgba(0,0,0,0.22);
-  --shadow-subtle: 0 2px 7px 0 rgba(0,0,0,0.13);
+  --shadow-elevated: 0 9px 32px 0 rgba(0,0,0,0.38), 0 2px 20px 0 #ff900014;
+  --shadow-subtle: 0 2.2px 9px 0 rgba(14,10,23,0.22);
   --logo-size: 29px;
 }
 
