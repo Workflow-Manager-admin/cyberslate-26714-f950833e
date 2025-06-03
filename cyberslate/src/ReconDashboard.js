@@ -414,7 +414,7 @@ function ReconDashboard({ sessionMode }) {
             "Accept": "application/json",
             "APIKEY": key,
           }),
-          process: async (resp) => {
+          process: async (resp, domain) => {
             // {subdomains:[], host:string}
             if (!resp.ok)
               throw new Error(`SecurityTrails error: ${resp.status} ${resp.statusText}`);
