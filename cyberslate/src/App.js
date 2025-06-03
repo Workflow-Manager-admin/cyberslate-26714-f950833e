@@ -7,7 +7,7 @@ import Logo from "./Logo";
 
 /**
  * AppContext for session info and API key sharing
- * Includes sessionMode, setSessionMode, apiKey, and setApiKey.
+ * Includes sessionMode, setSessionMode, apiKey, setApiKey, reconProvider, setReconProvider.
  */
 // PUBLIC_INTERFACE
 export const AppContext = React.createContext({
@@ -15,6 +15,8 @@ export const AppContext = React.createContext({
   setSessionMode: () => {},
   apiKey: "",
   setApiKey: () => {},
+  reconProvider: "hackertarget",
+  setReconProvider: () => {},
 });
 
 // The module definitions (shared among Sidebar, TabBar)

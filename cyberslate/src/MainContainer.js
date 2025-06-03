@@ -169,13 +169,101 @@ const MODULE_COMPONENTS = {
   ),
   Settings: function SettingsPanel({ sessionMode }) {
     // Use AppContext for API key and setter
-    const { apiKey, setApiKey, isDemoApiKey } = useContext(AppContext);
+    const { apiKey, setApiKey, isDemoApiKey, reconProvider, setReconProvider } = useContext(AppContext);
 
     // For UX/security, let users toggle visibility
     const [showApiKey, setShowApiKey] = React.useState(false);
 
+    // Provider selection: Local state to sync with AppContext/localStorage if missing
+    const PROVIDER_OPTIONS = [
+      { value: "hackertarget", label: "HackerTarget (Free, High-Capacity)" },
+      { value: "googledns", label: "Google DNS over HTTPS" }
+    ];
+
+    // If reconProvider doesn't exist (legacy users), default to 'hackertarget'
+    useEffect(() => {
+      if (!reconProvider) {
+        setReconProvider(window.localStorage.getItem("reconProvider") || "hackertarget");
+      }
+    }, [reconProvider, setReconProvider]);
+
     return (
       <div>
+        {/* Recon Provider Selection (for Lookups) */}
+        <div style={{
+          background: "linear-gradient(101deg, #23272e 80%, #21251c 100%)",
+          border: "1.6px solid #4bbaec33",
+          borderRadius: 12,
+          padding: "18px 22px 13px 19px",
+          boxShadow: "0 2px 13px 0 #259ddb12",
+          color: "#b8eae6",
+          margin: "8px 0 24px 0",
+          maxWidth: 510
+        }}>
+          <div style={{
+            fontWeight: 700,
+            fontSize: "1.07em",
+            marginBottom: 7,
+            color: "#7ee7ff"
+          }}>
+            <span role="img" aria-label="satellite" style={{ marginRight: 7 }}>📡</span>
+            Recon Lookup Provider
+          </div>
+          <div style={{
+            fontSize: "1.01em",
+            color: "#caecfc",
+            marginBottom: 8,
+            lineHeight: 1.47
+          }}>
+            Choose which provider to use for live subdomain and DNS lookups:<br />
+            <ul style={{ margin: "4px 0 10px 22px", color: "#aad6ec", fontSize: "0.99em" }}>
+              <li>
+                <b>HackerTarget.com</b> – Free, no registration, high query limit. Fast API for subdomain/DNS recon.
+              </li>
+              <li>
+                <b>Google DNS</b> – DNS-over-HTTPS API (public, privacy friendly). Great for resolving DNS records.
+              </li>
+            </ul>
+          </div>
+          {/* Provider radio group */}
+          <div role="radiogroup" aria-label="Recon Provider" style={{ display: "flex", gap: 25, marginBottom: 4 }}>
+            {PROVIDER_OPTIONS.map(opt => (
+              <label key={opt.value} style={{
+                display: "flex", alignItems: "center", gap: 9,
+                fontWeight: reconProvider === opt.value ? 700 : 520,
+                color: reconProvider === opt.value ? "#ffd700" : "#b8eae6",
+                background: reconProvider === opt.value ? "#23272e" : "transparent",
+                border: reconProvider === opt.value ? "1.6px solid #72caff" : "1.2px solid #22405a",
+                borderRadius: 8,
+                padding: "4px 17px 4px 10px",
+                cursor: "pointer",
+                transition: "all 0.13s"
+              }}>
+                <input
+                  type="radio"
+                  name="reconProvider"
+                  value={opt.value}
+                  checked={reconProvider === opt.value}
+                  onChange={e => {
+                    setReconProvider(opt.value);
+                    window.localStorage.setItem("reconProvider", opt.value);
+                  }}
+                  style={{
+                    accentColor: "#38deff",
+                    width: 18, height: 18,
+                    marginRight: 6, marginLeft: 0
+                  }}
+                />
+                {opt.label}
+              </label>
+            ))}
+          </div>
+          <div style={{
+            color: "#c4e9ab", fontSize: ".96em", marginTop: 2, opacity: 0.71
+          }}>
+            Preference is saved locally and used for lookups in Recon dashboard.
+          </div>
+        </div>
         {/* If using auto-generated demo key, show a clear UI notice */}
         {sessionMode === "Pro" && isDemoApiKey && apiKey && apiKey.startsWith("demo_") && (
           <div style={{
