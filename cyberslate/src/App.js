@@ -59,11 +59,48 @@ function App() {
     if (apiKey !== undefined) {
       window.localStorage.setItem("apiKey", apiKey || "");
     }
-  }, [apiKey]);
+    window.localStorage.setItem("isDemoApiKey", isDemoApiKey ? "true" : "false");
+  }, [apiKey, isDemoApiKey]);
+
+  // On sessionMode change: if switching to "Pro" and no API key, generate a random one and store
+  useEffect(() => {
+    if (sessionMode === "Pro" && !apiKey) {
+      // Generate a mock secure/random API key, visually distinct
+      const genKey = () => {
+        // Simple secure key (32 chars, hex + some symbols)
+        const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_.";
+        let result = "";
+        // Uses crypto if available, fallback to Math.random
+        if (window.crypto && window.crypto.getRandomValues) {
+          let array = new Uint8Array(32);
+          window.crypto.getRandomValues(array);
+          for (let i = 0; i < array.length; i++) {
+            result += charset[array[i] % charset.length];
+          }
+        } else {
+          for (let i = 0; i < 32; i++) {
+            result += charset[Math.floor(Math.random() * charset.length)];
+          }
+        }
+        // Prefix for demo
+        return "demo_" + result;
+      };
+      const fakeKey = genKey();
+      setApiKeyInternal(fakeKey);
+      setIsDemoApiKey(true);
+      // Save & mark as demo key
+      window.localStorage.setItem("apiKey", fakeKey);
+      window.localStorage.setItem("isDemoApiKey", "true");
+    }
+    // If switching back to Demo, keep user key (don't clear)
+  // eslint-disable-next-line
+  }, [sessionMode]); // only run on sessionMode
 
   // Setter exposed to context (if you want to do further sanitization, add here)
   const setApiKey = (key) => {
     setApiKeyInternal(key);
+    // User sets key manually, so not auto/demo anymore
+    setIsDemoApiKey(false);
     // (Will be saved via useEffect)
   };
 
@@ -117,7 +154,8 @@ function App() {
     setSessionMode,
     apiKey,
     setApiKey,
-  }), [sessionMode, setSessionMode, apiKey]); // setApiKey is stable
+    isDemoApiKey
+  }), [sessionMode, setSessionMode, apiKey, isDemoApiKey]); // setApiKey is stable
 
   return (
     <AppContext.Provider value={appContextValue}>
