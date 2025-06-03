@@ -1,565 +1,546 @@
-import React, { useContext, useState, useRef } from "react";
+import React, { useContext, useState, useRef, useEffect } from "react";
 import { AppContext } from "./App";
 
 /**
  * PUBLIC_INTERFACE
- * ReconDashboard - Enhanced recon panel supporting multi-domain batch input,
- * rich & contextual results, Demo vs Pro adaptation, CSV/JSON export,
- * quota/error/API key/feedback UX, and polished loader/skeleton states.
- *
- * Props:
- *   sessionMode ("Demo"|"Pro")
+ * ReconDashboard – Deeply enhanced recon panel for CyberSlate.
+ * Features:
+ *   - Batch input (multi-line) for multiple domains
+ *   - Sanitation/validation of domains
+ *   - Parallel recon fetches, with real API key if in Pro mode
+ *   - Aggregated results (status/errors/quota/invalid key)
+ *   - Modern expandable table, with skeleton loading and UX for edge cases
+ *   - Export to CSV/JSON (with full headers, not in Demo)
+ *   - UX adapts to Demo/Pro, blocks export in Demo, rich feedback for all states
+ *   - Handles all feedback requirements: missing/invalid key, quota, sync UI
  */
-function ReconDashboard({ sessionMode }) {
-  const { apiKey } = useContext(AppContext);
 
-  // UI/input state
-  const [batchInput, setBatchInput] = useState("");
-  const [parsedDomains, setParsedDomains] = useState([]);
-  const [results, setResults] = useState([]); // [{domain, data, status, error, quota, ctx}]
-  const [loadingMap, setLoadingMap] = useState({}); // { domain: true/false }
-  const [globalError, setGlobalError] = useState("");
-  const [showExportBar, setShowExportBar] = useState(false);
-  const [feedbackMsg, setFeedbackMsg] = useState(null); // null or { type, text }
-  const [hasAttempted, setHasAttempted] = useState(false);
-
-  // API feedback context
-  const reconEndpoint = "https://api.cyberrecon.ex/v1/recon/domain";
-  const demoStub = {
-    summary: "This is demo data. Switch to Pro mode with an API key for live recon and export features.",
-    hosts: ["demo.example.com", "api.example.com"], openPorts: [80,443],
-    amassNodes: [{ id: 1, label: "example.com", children: [{ id: 2, label: "demo.example.com" }] }],
-    // Simulate different data for multi-domain demo batches:
-    _demoVariants: [
-      {
-        summary: "Demo: Attack surface summary for foo.bar. Full data requires Pro.",
-        hosts: ["ws.foo.bar", "cdn.foo.bar"], openPorts: [8080],
-        amassNodes: [{id: 1, label: "foo.bar", children: [{id: 2, label: "cdn.foo.bar"}]}]
-      }, {
-        summary: "Demo: Subdomain graph for testsite.dev.",
-        hosts: ["api.testsite.dev"], openPorts: [443, 1234],
-        amassNodes: [{id: 1, label: "testsite.dev", children: [{id:2, label:"api.testsite.dev"}]}]
-      }
-    ]
-  };
-
-  // --- Utilities ---
-
-  // PUBLIC_INTERFACE
-  /** Parse the batch textarea into array of sanitized, deduped domains. */
-  function parseDomains(input) {
-    const SEPARATORS = /[,\s\n]+/;
-    const domains = input.split(SEPARATORS)
-      .map(s => s.trim().toLowerCase())
-      .filter(d => /^[a-z0-9.-]+\.[a-z]{2,}$/i.test(d))
-      .filter(Boolean);
-    // Return unique, order-preserved domains
-    return Array.from(new Set(domains));
+const DEMO_DATA = [
+  {
+    domain: "example.com",
+    data: {
+      summary: "Demo data for example.com. Switch to Pro for real-time recon.",
+      hosts: ["api.example.com", "mail.example.com", "cdn.example.com"],
+      openPorts: [80, 443, 25],
+      amassNodes: [
+        { id: 1, label: "example.com", children: [{ id: 2, label: "api.example.com" }] }
+      ]
+    },
+    status: "Demo",
+    error: "",
+    quota: ""
+  },
+  {
+    domain: "demo.org",
+    data: {
+      summary: "Demo: Subdomain recon and port scan. Pro unlocks more.",
+      hosts: ["dev.demo.org", "beta.demo.org"],
+      openPorts: [8080],
+      amassNodes: [
+        { id: 1, label: "demo.org", children: [{ id: 2, label: "beta.demo.org" }] }
+      ]
+    },
+    status: "Demo",
+    error: "",
+    quota: ""
   }
+];
 
-  /** Helper: triggers browser file download for given text and filename. */
-  function triggerDownload(filename, data, type="text/csv") {
-    const blob = new Blob([data], { type });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = filename;
-    document.body.appendChild(a);
-    a.click();
+function sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+/**
+ * Utility: Parse user input into unique, valid domain array
+ * Accept separators: comma, space, newlines
+ */
+function parseDomains(raw) {
+  const split = raw.split(/[\s,;]+/g)
+    .map(x => x.trim().toLowerCase())
+    .filter(Boolean)
+    .filter(x => /^[a-z0-9.-]+\.[a-z]{2,}$/.test(x));
+  // Preserve order, dedupe
+  return [...new Set(split)];
+}
+
+/**
+ * Utility: Download a file (for export)
+ */
+function triggerDownload(filename, content, mime) {
+  const blob = new Blob([content], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => {
     document.body.removeChild(a);
-    // Clean up after download
-    setTimeout(() => URL.revokeObjectURL(url), 500);
-  }
+    URL.revokeObjectURL(url);
+  }, 350);
+}
+/**
+ * Utility: Convert result array to CSV
+ */
+function resultsToCSV(arr) {
+  if (!arr?.length) return "";
+  // Build header union
+  const allKeys = new Set([
+    "domain", "status", "summary", "hosts", "openPorts", "quota", "error"
+  ]);
+  arr.forEach(row =>
+    row.data && typeof row.data === "object" &&
+    Object.keys(row.data).forEach(k => allKeys.add(k))
+  );
+  const header = Array.from(allKeys);
+  const csvRows = [
+    header.join(",")
+  ];
+  arr.forEach(r => {
+    csvRows.push(header.map(k => {
+      if (k === "hosts")
+        return r.data && Array.isArray(r.data.hosts) ? `"${r.data.hosts.join('; ')}"` : "";
+      if (k === "openPorts")
+        return r.data && Array.isArray(r.data.openPorts) ? `"${r.data.openPorts.join('; ')}"` : "";
+      if (k === "summary")
+        return r.data && r.data.summary ? `"${r.data.summary.replace(/"/g, '""')}"` : "";
+      if (k === "status")
+        return r.status || "";
+      if (k === "domain")
+        return r.domain || "";
+      if (k === "quota")
+        return r.quota || "";
+      if (k === "error")
+        return r.error || "";
+      // custom/key passthrough
+      return (r.data && r.data[k] !== undefined) ? JSON.stringify(r.data[k]) : "";
+    }).join(","));
+  });
+  return csvRows.join("\n");
+}
 
-  /** Converts the multi-result object to a CSV string. */
-  function resultsToCSV(results) {
-    // Gather all unique fields for headers
-    const headerSet = new Set(["Domain", "ResultStatus", "Summary", "Hosts", "OpenPorts", "APIQuotalimit", "Error"]);
-    results.forEach(r => {
-      // If extra fields in response, add
-      if (r.data && typeof r.data === "object") {
-        Object.keys(r.data).forEach(k => {
-          if (!["domain", "hosts", "summary", "openPorts", "amassNodes", "extraDetails"].includes(k))
-            headerSet.add(k);
-        });
-      }
-    });
-    const headers = Array.from(headerSet);
-    // Compile rows
-    const rows = [headers];
-    results.forEach(r => {
-      rows.push(headers.map(key => {
-        if (key === "Domain") return r.domain;
-        if (key === "ResultStatus") return r.status || (r.data ? "Success" : "—");
-        if (key === "Summary") return (r.data && r.data.summary) || "";
-        if (key === "Hosts") return (r.data && r.data.hosts && Array.isArray(r.data.hosts)) ? r.data.hosts.join("; ") : "";
-        if (key === "OpenPorts") return (r.data && r.data.openPorts && Array.isArray(r.data.openPorts)) ? r.data.openPorts.join("; ") : "";
-        if (key === "Error") return r.error || "";
-        if (key === "APIQuotalimit") return r.quota || "";
-        // Extra
-        if (r.data && r.data[key] !== undefined) return typeof r.data[key] === "object" ? JSON.stringify(r.data[key]) : r.data[key];
-        return "";
-      }));
-    });
-    // CSV encode
-    return rows.map(row => row.map(v => `"${(v||"").toString().replace(/"/g, '""')}"`).join(",")).join("\n");
-  }
-
-  /** Converts the multi-result object to a JSON string (pretty). */
-  function resultsToJSON(results) {
-    return JSON.stringify(results.map(r => ({
+/**
+ * Utility: Convert result array to JSON (one object per domain)
+ */
+function resultsToJSON(arr) {
+  return JSON.stringify(
+    arr.map(r => ({
       domain: r.domain,
       status: r.status,
-      summary: r.data && r.data.summary || undefined,
-      ...r.data,
       error: r.error,
       quota: r.quota,
-    })), null, 2);
-  }
+      ...r.data
+    })),
+    null, 2
+  );
+}
 
-  /** Get status badge color for a result row (success, error, quota, loading). */
-  function statusBadge(row) {
-    if (row.error) return "#ff9800";
-    if (row.quota) return "#c77deb";
-    if (loadingMap[row.domain]) return "#b1bbff";
-    return "#45ef97";
-  }
+function statusColor(row, loading) {
+  if (loading) return "#b1bbff";
+  if (row.error) return "#ff9800";
+  if (row.quota) return "#c086ff";
+  if (row.status === "Demo" || row.status?.startsWith("Demo")) return "#bab59b";
+  return "#56e7a2";
+}
 
-  // --- Handler: on submit, run recon for all parsed domains ---
-  // PUBLIC_INTERFACE
-  async function handleReconBatchSubmit(e) {
-    e.preventDefault();
-    setGlobalError("");
-    setResults([]);
-    setFeedbackMsg(null);
-    setHasAttempted(true);
+/**
+ * Feedback Toast
+ */
+function FeedbackToast({ feedback, onClose }) {
+  if (!feedback) return null;
+  let fg = "#f5dc94", bg="#25272ecc";
+  if (feedback.type === "error") { fg="#ff982b"; bg="#23180dee"; }
+  else if (feedback.type === "success") { fg="#6dffb7"; bg="#0c2517f9"; }
+  else if (feedback.type === "warning") { fg="#c27df6"; bg="#18132a"; }
+  return (
+    <div style={{
+      position:"fixed",top:86,right:31,zIndex:9999,minWidth:325,
+      background: bg, color: fg, padding:"13px 37px", borderRadius:12,
+      fontWeight:590, fontSize:"1.14em", boxShadow:"0 4px 13px #0007",
+      letterSpacing:".018em", border:`2.3px solid ${fg}50`, display:"flex",alignItems:"center",gap:12,
+      animation:"toastpop .33s cubic-bezier(.42,2.3,.47,1)"
+    }}>
+      <span>
+        {feedback.type==="error"&&"⚠️"}
+        {feedback.type==="success"&&"✅"}
+        {feedback.type==="warning"&&"⏳"}
+      </span>
+      <span>{feedback.text}</span>
+      <button aria-label="Dismiss"
+        style={{marginLeft:"auto",background:"none",border:"none",color:fg,fontWeight:700,fontSize:"1.12em", cursor:"pointer"}} onClick={onClose}>×</button>
+    </div>
+  );
+}
 
-    // Parse and validate input
-    const domains = parseDomains(batchInput);
-    setParsedDomains(domains);
-    if (domains.length === 0) {
-      setGlobalError("Please enter one or more valid domains (use commas, whitespace, or line-breaks).");
-      return;
-    }
-    // For Pro, enforce API key requirement
-    if (sessionMode === "Pro" && !apiKey) {
-      setGlobalError("API key required. Please enter your key in Settings to use Pro mode.");
-      setFeedbackMsg({ type: "error", text: "Missing API key. Switch to Demo or enter your key in Settings." });
-      return;
-    }
-    // Reset for incoming
-    let batchResults = [];
-    // Mark all as loading
-    let loadMap = {};
-    domains.forEach(domain => loadMap[domain] = true);
-    setLoadingMap({ ...loadMap });
-
-    // For handling batch in Demo, rotate stubs per input for some variety
-    let useDemoVariants = sessionMode === "Demo";
-    let feedbacks = [];
-
-    // Loop async per domain, parallelize in real usage
-    await Promise.all(domains.map(async (domain, idx) => {
-      // Helper to set result
-      function appendResult(data, status, err, quota) {
-        batchResults.push({
-          domain,
-          data,
-          status,
-          error: err || "",
-          quota, // e.g. "Quota exceeded" or undefined
-        });
-        setResults(results_ => {
-          // Remove previous for domain if re-run
-          const filtered = results_.filter(r => r.domain !== domain);
-          return [...filtered, { domain, data, status, error: err, quota }];
-        });
-      }
-      try {
-        let data, status = "Success", quota;
-        if (sessionMode === "Demo") {
-          // Use stub with some variation
-          await new Promise(r => setTimeout(r, 800 + (idx * 200)));
-          let demoData = demoStub;
-          if (useDemoVariants && demoStub._demoVariants[idx % demoStub._demoVariants.length]) {
-            demoData = { ...demoStub, ...demoStub._demoVariants[idx % demoStub._demoVariants.length] };
-          }
-          data = { ...demoData, domain };
-
-          // Demo mode limitations
-          status = "Demo (Mock Data)";
-          if (idx === 1) quota = "Demo limit: 2 real batch domains per run";
-          appendResult(data, status, "", quota);
-
-        } else {
-          // PRO MODE: Run real API query
-          const resp = await fetch(`${reconEndpoint}?domain=${encodeURIComponent(domain)}`, {
-            headers: {
-              Authorization: `Bearer ${apiKey}`,
-              Accept: "application/json",
-            },
-          });
-          // Simulate network fail for certain Batched domains (simulate quota, error)
-          if (resp.status === 401 || resp.status === 403) {
-            status = "API Key Invalid";
-            appendResult(null, status, "API key was missing or invalid.", null);
-            feedbacks.push({ type: "error", text: `API key rejected for ${domain}. Update key in Settings.` });
-            return;
-          }
-          if (resp.status === 429) {
-            // Quota
-            quota = "API quota exceeded!";
-            appendResult(null, "Quota Exceeded", null, quota);
-            feedbacks.push({ type: "warning", text: `API quota/limit exceeded while scanning ${domain}. Try again later or review plan.` });
-            return;
-          }
-          if (!resp.ok) {
-            status = "Error";
-            appendResult(null, status, `Recon failed: ${resp.status} ${resp.statusText}`, null);
-            feedbacks.push({ type: "error", text: `Recon failed for ${domain}: ${resp.status}` });
-            return;
-          }
-          // Good response
-          let rdata = await resp.json();
-          if (!rdata || typeof rdata !== "object") {
-            status = "Error";
-            appendResult(null, status, "Malformed/empty API response.", null);
-            feedbacks.push({ type: "error", text: `Malformed/empty API response for ${domain}.` });
-            return;
-          }
-          data = { ...rdata, domain };
-          status = "Success";
-          appendResult(data, status, "", undefined);
-        }
-      } catch (ex) {
-        appendResult(null, "Error", ex && ex.message ? ex.message : "Unknown recon error.", null);
-        feedbacks.push({ type: "error", text: `Recon error for ${domain}: ${ex && ex.message}` });
-      } finally {
-        setLoadingMap(prev => ({ ...prev, [domain]: false }));
-      }
-    }));
-    // If quota or api error, set globalFeedback
-    if (feedbacks.length) setFeedbackMsg(feedbacks[feedbacks.length - 1]);
-    setShowExportBar(true); // Show export on results
-  }
-
-  // --- Export handlers ---
-  function handleExportCSV() {
-    if (!results || !results.length) return;
-    triggerDownload("recon-results.csv", resultsToCSV(results), "text/csv");
-    setFeedbackMsg({ type: "success", text: "Results exported as CSV!" });
-  }
-  function handleExportJSON() {
-    if (!results || !results.length) return;
-    triggerDownload("recon-results.json", resultsToJSON(results), "application/json");
-    setFeedbackMsg({ type: "success", text: "Results exported as JSON!" });
-  }
-
-  // --- UI skeleton and feedback ---
-  function SkeletonRow({ domain="...", idx }) {
-    // Simple animated skeleton bar for each "loading" row
-    return (
-      <tr style={{ background: "#23272e" }}>
-        <td colSpan={7}>
-          <div style={{
-            height: 28, borderRadius: 7, margin: "6px 0", background:
-            "linear-gradient(90deg, #181a2066 30%, #1a1c2399 60%, #181a2066 100%)",
-            animation: "skeleton-anim 1.3s infinite linear",
-            backgroundSize: "200% 100%",
-            width: "95%"
-          }}>
-            <span style={{
-              color: "#bbb", marginLeft: 11,
-              fontSize: "1em", fontWeight: 500,
-              letterSpacing: ".03em",
-              opacity: .82
-            }}>
-              <span style={{
-                background: "linear-gradient(90deg, #ecc17b 58%, #ffe29f 100%)",
-                color: "#23272e",
-                borderRadius: 5, padding: "2.5px 8px",
-                fontSize: ".98em", fontWeight: 700, marginRight: 10
-              }} />
-              Loading scan for&nbsp;
-              <b style={{ color: "#ff9800", fontWeight: 700 }}>{domain}</b>
-              &nbsp;...
-            </span>
-          </div>
-        </td>
-      </tr>
-    );
-  }
-
-  // --- Feedback toast/modal ---
-  function FeedbackToast({ msg }) {
-    if (!msg) return null;
-    let bg, fg;
-    if (msg.type === "error") { bg = "#25221eec"; fg="#ff982b"; }
-    else if (msg.type === "success") { bg="#191f16e9"; fg="#6dffb7"; }
-    else if (msg.type === "warning") { bg="#18132a"; fg="#c27df6"; }
-    else { bg="#202540"; fg="#fde9a7"; }
-    return (
-      <div style={{
-        position:"fixed", top:81, right:31, zIndex:9999, minWidth:320,
-        background: bg, color: fg, padding:"13px 32px", borderRadius:12, fontWeight:590,
-        fontSize:"1.09em", boxShadow:"0 3px 13px #000a", letterSpacing:".02em",
-        border:`2px solid ${fg}40`,display:"flex",alignItems:"center", gap:13,
-        animation:"toastpop .32s cubic-bezier(.4,2.4,.5,1)"
-      }}>
-        <span>
-          {msg.type==="error"&&"⚠️"}
-          {msg.type==="success"&&"✅"}
-          {msg.type==="warning"&&"⏳"}
-        </span>
-        <span>{msg.text}</span>
-        <button
-          aria-label="Dismiss" style={{
-            marginLeft:"auto",cursor:"pointer",background:"none",border:"none",fontWeight:700,
-            color:fg,fontSize:"1.13em"
-          }}
-          onClick={()=>setFeedbackMsg(null)}>×</button>
+/**
+ * Expandable modern table for results
+ */
+function ResultsTable({ results, loadingMap }) {
+  if (!results || !results.length) return null;
+  return (
+    <div style={{
+      background:"#23272e", border:"1.5px solid var(--border-color)", borderRadius:18,
+      marginTop:17, padding:"19px 9px 9px 9px", boxShadow:"0 5px 24px #0002"
+    }}>
+      <div style={{fontWeight:600,color:"var(--accent)",fontSize:"1.12em",marginBottom:9}}>
+        Recon Results ({results.length} domain{results.length!==1&&"s"})
       </div>
-    );
-  }
-
-  // --- Results Table/Detail UI ---
-  function ResultsTable({ rows }) {
-    if (!rows || !rows.length) return null;
-    return (
-      <div style={{
-        background:"#23272e",border:"1.5px solid var(--border-color)",borderRadius:18,
-        marginTop:17,padding:"19px 9px 10px 9px",boxShadow:"0 5px 22px #0003"
-      }}>
-        <div style={{fontWeight: 600, color: "var(--accent)", fontSize:"1.09em",
-          marginBottom:9, letterSpacing:".01em"}}>
-          Recon Results ({rows.length} domain{rows.length!==1 && "s"})
-        </div>
-        <div style={{overflowX:"auto"}}>
+      <div style={{overflowX:"auto"}}>
         <table style={{
-          width:"100%",borderCollapse:"collapse",background:"none", fontSize:"1.01em"
+          width:"100%",borderCollapse:"collapse",background:"none",fontSize:"1.03em"
         }}>
           <thead>
             <tr style={{
-              color:"#ff9800c9",fontWeight:700,fontSize:"1.01em",background:"#25272f",height:36,
-              borderRadius:8
+              color:"#ff9800dc",background:"#25272f",height:36,
+              fontWeight:700, borderRadius:8
             }}>
-              <th style={{padding:"7px 9px"}}>Domain</th>
+              <th style={{padding:"6px 9px"}}>Domain</th>
               <th>Status</th>
               <th>Summary</th>
               <th>Hosts/Subdomains</th>
               <th>Open Ports</th>
-              <th>Quota/API Limit</th>
+              <th>Quota/Limits</th>
               <th>Error</th>
-              <th>Detail</th>
+              <th>Details</th>
             </tr>
           </thead>
           <tbody>
-            {/* Loading Rows */}
-            {rows.filter(row=>loadingMap[row.domain])
-              .map((row, idx) => <SkeletonRow domain={row.domain} key={`skeleton-${row.domain}`} idx={idx} />)}
-            {/* Actual Data */}
-            {rows && rows.map((row, i)=>{
-              // Render as error (fail row), success, quota, etc.
-              let badgeStyle = {
-                background:statusBadge(row), color:"#23272e", borderRadius:10,
-                fontWeight:750, padding:"2.5px 13px", fontSize:".96em", marginRight:5
-              };
+            {results.map(row => {
+              const loading = !!loadingMap[row.domain];
               return (
-                <tr key={row.domain} style={{
-                  background: row.error ? "#43202644"
-                    : row.quota ? "#2c2c44cc"
-                    : loadingMap[row.domain] ? "#23272e"
-                    : "#232d2850",
-                  borderBottom: "1.5px solid #282b33", height:38
-                }}>
-                  <td style={{fontWeight:700,letterSpacing:".01em",padding:"6px 9px"}}>
+                <tr key={row.domain}
+                  style={{
+                    background: row.error ? "#34211b44"
+                      : row.quota ? "#2c2147cc"
+                      : loading ? "#25272e"
+                      : "#232d2850",
+                    borderBottom: "1.4px solid #282b33",
+                    minHeight:36
+                  }}
+                >
+                  <td style={{fontWeight:700,padding:"6px 9px"}}>
                     <span style={{
-                      background:"linear-gradient(90deg,#23272e77 60%,#ffc80013 100%)",
-                      border:"1.5px solid #ecee224d", borderRadius:8,
-                      padding:"3px 11px",marginRight:2
+                      background:"linear-gradient(90deg,#23272e77 66%,#ffc80013 100%)",
+                      borderRadius:7,border:"1.4px solid #ecee2256",padding:"3.2px 11px"
                     }}>{row.domain}</span>
                   </td>
                   <td>
-                    <span style={badgeStyle}>
-                      {row.error  ? "Error"
-                        : row.quota ? "Quota"
-                        : loadingMap[row.domain] ? "Loading"
+                    <span style={{
+                      background:statusColor(row, loading),
+                      color:"#23272e",borderRadius:11,
+                      fontWeight:750,padding:"2.6px 14px",fontSize:".96em"
+                    }}>
+                      {loading?"Loading..."
+                        : row.error?"Error"
+                        : row.quota?"Quota/Limited"
                         : row.status}
                     </span>
                   </td>
-                  <td style={{maxWidth:199,overflow:"hidden",textOverflow:"ellipsis"}}>
-                    <span style={{color:"#fde9a7", opacity:.94,fontWeight:500}}>
-                      {row.data && row.data.summary}
+                  <td style={{maxWidth:215,overflow:"hidden",textOverflow:"ellipsis"}}>
+                    <span style={{color:"#fde9a7",opacity:.94,fontWeight:500}}>
+                      {row.data?.summary || ""}
                       {row.quota && `[Quota: ${row.quota}]`}
-                      {row.error && ""}
                     </span>
                   </td>
                   <td>
                     {row.data && Array.isArray(row.data.hosts) &&
                       <span style={{color:"#adcfd1"}}>
-                        {row.data.hosts.slice(0,3).join(", ")}
-                        {row.data.hosts.length>3 && <span style={{color:"#aaaa"}}>...+{row.data.hosts.length-3}</span>}
+                        {row.data.hosts.slice(0, 3).join(", ")}
+                        {row.data.hosts.length > 3 && <span style={{color:"#aaa"}}>...+{row.data.hosts.length-3}</span>}
                       </span>
                     }
                   </td>
                   <td style={{color:"#ffd279",fontWeight:500}}>
-                    {row.data && row.data.openPorts && Array.isArray(row.data.openPorts)
+                    {row.data && Array.isArray(row.data.openPorts)
                       ? row.data.openPorts.join(", ") : ""}
                   </td>
                   <td>
-                    {row.quota ?
-                      <span style={{color:"#dc8ffb"}}>{row.quota}</span>
+                    {row.quota
+                      ? <span style={{color:"#dc8ffb"}}>{row.quota}</span>
                       : <span style={{color:"#aaa"}}>—</span>
                     }
                   </td>
-                  <td style={{color:"#ff9800",fontWeight:570,maxWidth:128,
-                      overflow:"hidden",textOverflow:"ellipsis"}}>
-                    {row.error}
+                  <td style={{
+                    color:"#ffb740",fontWeight:560,maxWidth:111,overflow:"hidden",textOverflow:"ellipsis"
+                  }}>
+                    {row.error ? row.error : ""}
                   </td>
                   <td>
-                    {/* Expand details inline: small pre for now, enhance later */}
-                    {row.data ?
-                      <details>
-                        <summary style={{
-                          color:"#8fdce9",cursor:"pointer",fontWeight:530}}>View
-                        </summary>
-                        <pre style={{
-                          fontSize:".93em", color:"#eee0ff",margin:0,whiteSpace:"pre-wrap",wordBreak:"break-word"
-                        }}>
-                          {JSON.stringify(row.data, null, 2)}
-                        </pre>
-                      </details>
-                    : row.quota ?"—": row.error && "—"}
+                    {row.data
+                      ? <details>
+                          <summary style={{color:"#8fdce9",cursor:"pointer",fontWeight:500}}>Expand</summary>
+                          <pre style={{
+                            fontSize:".94em", color:"#eee0ff", margin:0,
+                            whiteSpace:"pre-wrap", wordBreak:"break-word", background:"none"
+                          }}>
+                            {JSON.stringify(row.data, null, 2)}
+                          </pre>
+                        </details>
+                      : row.quota ? "—"
+                      : row.error && "—"
+                    }
                   </td>
                 </tr>
               );
             })}
+            {/* Loading skeletons for still in-flight jobs */}
+            {Object.entries(loadingMap).filter(([d, v]) => v).map(([domain]) =>
+              <tr key={domain+"-skel"}>
+                <td colSpan={8}>
+                  <div style={{
+                    height: 27, borderRadius: 6, margin: "6px 0",
+                    background: "linear-gradient(90deg,#23272e .38%,#181a2077 49%,#23272e 95%)",
+                    animation: "skeleton-anim 1.15s infinite linear", backgroundSize: "200% 100%", width:"97%"
+                  }}>
+                    <span style={{
+                      color: "#bbb", marginLeft: 11, fontSize: "1em", fontWeight: 500, letterSpacing: ".03em", opacity: .75
+                    }}>
+                      <span style={{
+                        background: "linear-gradient(90deg, #ecc17b 68%, #ffe29f 100%)", color: "#23272e",
+                        borderRadius: 5, padding: "2px 8px", fontSize: ".98em", fontWeight: 700, marginRight: 10
+                      }} />
+                      Scanning <b style={{color:"#ff9800"}}>{domain}</b>...
+                    </span>
+                  </div>
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
-        </div>
       </div>
-    );
+    </div>
+  );
+}
+
+function ReconDashboard({ sessionMode }) {
+  const { apiKey } = useContext(AppContext);
+
+  // UI/Input State
+  const [inputString, setInputString] = useState("");
+  const [domainList, setDomainList] = useState([]);
+  const [results, setResults] = useState([]); // [{domain, ...}]
+  const [loadingMap, setLoadingMap] = useState({});
+  const [feedback, setFeedback] = useState(null); // {type,text}
+  const [errorMsg, setErrorMsg] = useState("");
+  const [hasTried, setHasTried] = useState(false);
+  const [showExport, setShowExport] = useState(false);
+
+  const inputRef = useRef();
+
+  useEffect(() => {
+    setResults([]);
+    setHasTried(false);
+    setShowExport(false);
+    setFeedback(null);
+    setErrorMsg("");
+    setDomainList(parseDomains(inputString));
+  }, [sessionMode]); // Reset on mode change
+
+  function handleInputChange(e) {
+    setInputString(e.target.value);
+    setDomainList(parseDomains(e.target.value));
+    setHasTried(false);
+    setErrorMsg("");
+    setFeedback(null);
   }
 
-  // --- Main Render ---
+  // PUBLIC_INTERFACE
+  async function handleReconSubmit(e) {
+    e.preventDefault();
+    setErrorMsg("");
+    setFeedback(null);
+    setHasTried(true);
+
+    const to_scan = parseDomains(inputString);
+    setDomainList(to_scan);
+
+    if (!to_scan.length) {
+      setErrorMsg("Please enter at least one valid domain (separated by lines, commas or spaces).");
+      setResults([]);
+      setShowExport(false);
+      return;
+    }
+
+    // Pro mode: API key required
+    if (sessionMode === "Pro" && !apiKey) {
+      setErrorMsg("API key required. Please enter your key in Settings then retry.");
+      setFeedback({type:"error", text: "API key missing. Enter your key to unlock Pro features."});
+      setResults([]);
+      setShowExport(false);
+      return;
+    }
+
+    // Reset all results, and mark all as loading
+    setResults([]);
+    let recLoading = {};
+    to_scan.forEach(domain => recLoading[domain]=true);
+    setLoadingMap(recLoading);
+
+    // Demo: Use local results with some variety
+    if (sessionMode === "Demo") {
+      let fake = to_scan.map((d, idx) => {
+        let variant = DEMO_DATA[idx % DEMO_DATA.length];
+        return {
+          ...variant,
+          domain: d,
+          data: { ...variant.data, domain: d, summary: (variant.data.summary||"").replace(variant.domain||"", d)},
+          status: "Demo",
+          error: "",
+          quota: idx>=2 ? "Demo: Only 2 full domains at a time." : ""
+        };
+      });
+      for(let i=0;i<fake.length;i++) { await sleep(400 + i*170);}
+      setResults(fake);
+      setLoadingMap({});
+      setShowExport(false);
+      setFeedback({type:"warning",text:"Demo mode shows sample data only. Export and live recon are unlocked in Pro mode."});
+      return;
+    }
+
+    // Pro mode: real API queries (parallel)
+    let allResults = [];
+    let backend = "https://api.cyberrecon.ex/v1/recon/domain";
+
+    await Promise.all(
+      to_scan.map(async (domain, idx) => {
+        setLoadingMap(lmap => ({ ...lmap, [domain]: true }));
+        let result = {domain, data:null, status:"", error:"", quota:""};
+        try {
+          const resp = await fetch(`${backend}?domain=${encodeURIComponent(domain)}`,
+            {
+              headers: {
+                Accept: "application/json",
+                Authorization: `Bearer ${apiKey}`
+              }
+            }
+          );
+          // API key/invalid/quota feedbacks
+          if (resp.status === 401 || resp.status === 403) {
+            result.status = "Auth Error";
+            result.error = "API key invalid or expired.";
+            result.quota = "";
+            setFeedback({type:"error", text: `API key rejected by server (domain: ${domain}).`});
+          } else if (resp.status === 429) {
+            result.status = "Quota Exceeded";
+            result.quota = "Quota exceeded";
+            setFeedback({type:"warning", text:`API quota/limit exceeded for ${domain}.`});
+          } else if (!resp.ok) {
+            result.status = "Error";
+            result.error = `Recon failed: ${resp.status} ${resp.statusText}`;
+            setFeedback({type:"error", text:`Recon failed for ${domain} (${resp.status}).`});
+          } else {
+            let rdata = await resp.json();
+            if (!rdata || typeof rdata !== "object") {
+              result.status = "Malformed";
+              result.error = "Malformed/empty API response.";
+            } else {
+              result.status = "Success";
+              result.data = {...rdata, domain};
+            }
+          }
+        } catch (ex) {
+          result.status = "Error";
+          result.error = ex?.message || "Unknown recon error.";
+          setFeedback({type:"error", text:`Recon error for ${domain}: ${result.error}`});
+        }
+        allResults.push(result);
+        setResults(lst => {
+          // Insert/replace by domain (preserve order, avoid dupes)
+          let n = lst.filter(x => x.domain !== domain);
+          return [...n, result];
+        });
+        setLoadingMap(lmap => ({ ...lmap, [domain]: false }));
+      })
+    );
+
+    setLoadingMap({});
+    setShowExport(true);
+    if(allResults.filter(x=>x.status==="Success").length === to_scan.length) {
+      setFeedback({type:"success", text:"Recon completed successfully!"});
+    }
+  }
+
+
+  function handleExportCSV() {
+    if (!results.length) return;
+    triggerDownload("recon-results.csv", resultsToCSV(results), "text/csv");
+    setFeedback({type:"success", text:"Exported as CSV!"});
+  }
+  function handleExportJSON() {
+    if (!results.length) return;
+    triggerDownload("recon-results.json", resultsToJSON(results), "application/json");
+    setFeedback({type:"success", text:"Exported as JSON!"});
+  }
+
   return (
     <div>
       <style>
         {`
-        @keyframes skeleton-anim {
-          0% {background-position: 0% 0;}  100% {background-position: 100% 0;}
-        }
-        @keyframes toastpop {
-          from{transform:translateY(-25px) scale(.94);opacity:0;}
-          to{transform:none;opacity:1;}
-        }
+          @keyframes skeleton-anim {
+            0% {background-position: 0% 0;}  100% {background-position: 100% 0;}
+          }
+          @keyframes toastpop {
+            from{transform:translateY(-24px) scale(.92);opacity:0;}
+            to{transform:none;opacity:1;}
+          }
         `}
       </style>
-      <div
-        style={{
-          fontSize: "1.22rem",
-          fontWeight: 600,
-          marginBottom: 14,
-          color: "var(--accent)",
-        }}
-      >
+      <div style={{
+        fontSize: "1.22rem", fontWeight: 600, marginBottom: 15, color: "var(--accent)",
+      }}>
         Recon Dashboard
-        <span
-          style={{
-            marginLeft: 14,
-            fontWeight: 500,
-            fontSize: "0.97rem",
-            color: "var(--text-secondary)",
-            padding: "3px 14px",
-            borderRadius: 10,
-            background:
-              sessionMode === "Demo"
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(255,152,0,0.15)",
-            border:
-              sessionMode === "Pro"
-                ? "1.5px solid var(--accent)"
-                : "1.5px solid #ffffff22",
-            marginTop: -4,
-            marginBottom: -4,
-            marginRight: 0,
-          }}
-          aria-label={`Current mode: ${sessionMode}`}
-        >
+        <span style={{
+          marginLeft: 15, fontWeight: 500, fontSize: "1.01rem", color: "var(--text-secondary)",
+          padding: "3.4px 14px", borderRadius: 10,
+          background: sessionMode === "Demo" ? "rgba(255,255,255,0.09)" : "rgba(255,152,0,0.15)",
+          border: sessionMode === "Pro"? "1.6px solid var(--accent)": "1.5px solid #fff2",
+          marginTop: -4, marginBottom: -4
+        }}>
           {sessionMode} Mode
         </span>
       </div>
-      <div style={{ marginBottom: 16, maxWidth: 570 }}>
+      {/* --- Input -- */}
+      <div style={{ marginBottom: 17, maxWidth: 600 }}>
         <form
-          onSubmit={handleReconBatchSubmit}
-          style={{
-            display: "flex",
-            flexDirection: "row",
-            alignItems: "flex-start",
-            gap: 14,
-            marginBottom: 3,
-            maxWidth: 570,
-          }}
+          onSubmit={handleReconSubmit}
+          style={{display:"flex",flexDirection:"row",alignItems:"flex-start",gap:15,maxWidth:630}}
           autoComplete="off"
         >
           <div style={{ flex: 1 }}>
             <textarea
+              ref={inputRef}
+              rows={sessionMode === "Pro" ? 4 : 3}
               placeholder={
-                "Enter one or more domains.\nSeparate with commas, whitespace or line breaks. e.g.:\nexample.com, testsite.dev, foo.bar"
+                "Enter domains here (one per line, comma/space/semicolon allowed).\nEg: acme.com, testsite.dev"
               }
-              rows={sessionMode === "Demo" ? 3 : 6}
-              value={batchInput}
+              value={inputString}
+              onChange={handleInputChange}
+              style={{
+                width: "100%", padding: "12px 13px", fontSize: "1.08em",
+                background: "#23272e", color: "#ffe9c4", border: "1.5px solid var(--border-color)",
+                borderRadius: 8, minHeight: 50, maxHeight: sessionMode==="Pro"?220:110,
+                fontWeight: 500, fontFamily: "inherit", resize: "vertical", letterSpacing: ".01em"
+              }}
               spellCheck={false}
               autoCorrect="off"
               autoCapitalize="none"
-              style={{
-                width: "100%",
-                padding: "12px 13px",
-                fontSize: "1.07em",
-                background: "#23272e",
-                color: "#ffe9c4",
-                border: "1.5px solid var(--border-color)",
-                borderRadius: 8,
-                outline: "none",
-                fontWeight: 500,
-                fontFamily: "inherit",
-                resize: "vertical",
-                minHeight: 50,
-                maxHeight: sessionMode==="Pro" ? 220 : 110,
-                letterSpacing: ".01em",
-              }}
-              onChange={e => {
-                setBatchInput(e.target.value);
-                setParsedDomains(parseDomains(e.target.value));
-                setHasAttempted(false);
-                setGlobalError("");
-                setFeedbackMsg(null);
-              }}
               disabled={Object.values(loadingMap).some(Boolean)}
             />
-            <div style={{ color: "#bfb677", fontSize: ".96em", marginTop: 7, marginLeft: 2 }}>
-              Batch mode: Type/paste domains (one per line, or comma/space/semicolon separated).
-              <br />
-              {/* UX touchpoint: Show how many are parsed and if valid */}
-              <b>{parsedDomains.length}</b> valid domain{parsedDomains.length !== 1 && "s"} detected.
+            <div style={{
+              color: "#bfb677", fontSize: ".96em", marginTop: 7, marginLeft: 2
+            }}>
+              <b>{domainList.length}</b> valid domain{domainList.length !== 1 && "s"} detected.
+              <br/>
+              Batch recon: Paste / type multiple domains (deduped, sanitized).
             </div>
           </div>
           <button
             type="submit"
             className="btn"
             style={{
-              background: "var(--accent-gradient)",
-              color: "#22272e",
-              fontWeight: 700,
-              border: "none",
-              borderRadius: 8,
-              padding: "10px 26px",
-              fontSize: "1.09em",
-              boxShadow: "0 1px 7px #ff980027",
-              cursor: Object.values(loadingMap).some(Boolean) ? "not-allowed" : "pointer",
-              opacity: Object.values(loadingMap).some(Boolean) ? 0.6 : 1,
-              marginTop: 3,
-              minWidth: 118,
-              transition: "opacity 0.11s"
+              background:"var(--accent-gradient)", color:"#21261f",
+              fontWeight:700, border:"none", borderRadius:8,
+              padding:"11px 25px", fontSize:"1.1em", marginTop:2, minWidth:119,
+              boxShadow:"0 1px 7px #ff980027", cursor:Object.values(loadingMap).some(Boolean)?"not-allowed":"pointer",
+              opacity:Object.values(loadingMap).some(Boolean)?0.66:1, transition: ".13s"
             }}
             disabled={Object.values(loadingMap).some(Boolean)}
             aria-busy={Object.values(loadingMap).some(Boolean)}
@@ -567,111 +548,65 @@ function ReconDashboard({ sessionMode }) {
             {Object.values(loadingMap).some(Boolean) ? "Scanning..." : "Run Recon"}
           </button>
         </form>
-        {sessionMode === "Demo" ? (
+        <div style={{ fontSize:"0.98em", color:"var(--text-secondary)", marginLeft:2,marginTop: 3 }}>
+          {sessionMode === "Demo"
+            ? <>Demo returns sample/mock data. Switch to <b style={{ color:"#ff9800" }}>Pro</b> + API key for live results, batch and export.</>
+            : <>Pro scans live using your API key; data is never stored by this app.</>
+          }
+        </div>
+        {errorMsg && (
           <div style={{
-            fontSize: "0.98em",
-            color: "var(--text-secondary)",
-            marginLeft: 2
+            color: "#ff9800", marginTop: 9, background: "#181a2070",
+            border: "1.3px dashed #ff980066", borderRadius: 9,
+            padding: "8px 21px", fontSize: "1em", fontWeight: 540, maxWidth: 570
           }}>
-            <span>
-              Demo mode returns sample/mock data.<br />
-              Switch to <b style={{ color: "#ff9800" }}>Pro</b> (with API key) for live reconnaissance, full export, and feature unlocks.
-            </span>
-          </div>
-        ) : (
-          <div style={{
-            fontSize: "0.98em",
-            color: "var(--text-secondary)",
-            marginLeft: 2
-          }}>
-            Your API key is used securely for each scan; no data is stored by the app.
+            {errorMsg}
           </div>
         )}
-        {/* Error/block state */}
-        {globalError && (
-          <div
-            style={{
-              color: "#ff9800",
-              marginTop: 9,
-              background: "#181a2070",
-              border: "1.3px dashed #ff980066",
-              borderRadius: 9,
-              padding: "8px 22px",
-              fontSize: "1em",
-              fontWeight: 540
-            }}
-          >
-            {globalError}
-          </div>
-        )}
-        {/* Guidance when idle */}
-        {(!globalError && !Object.values(loadingMap).some(Boolean) && !results.length && hasAttempted) && (
-          <div style={{ color: "#999", marginTop: 10, fontSize: "0.99em", fontStyle: "italic" }}>
-            Enter one or more domains above to begin reconnaissance.
+        {!errorMsg && !Object.values(loadingMap).some(Boolean) && !results.length && hasTried && (
+          <div style={{ color: "#aaa", marginTop: 10, fontSize: "0.99em", fontStyle: "italic" }}>
+            Enter domain(s) and click <b>Run Recon</b> to begin.
           </div>
         )}
       </div>
-      {/* --- Results Export Bar --- */}
-      {results && results.length > 0 && showExportBar && sessionMode === "Pro" && (
+      {/* --- Export bar (on success only in Pro) --- */}
+      {results && results.length > 0 && showExport && sessionMode === "Pro" && (
         <div style={{
-          marginTop: 3, marginBottom: 7, display: "flex", alignItems: "center", gap: 16
+          marginTop:7, marginBottom:7, display:"flex", alignItems:"center",gap:16
         }}>
-          <button
-            className="btn"
-            onClick={handleExportCSV}
-            style={{
-              background: "#fde9a7", color: "#23272e", border: "none",
-              borderRadius: 8, fontWeight: 700, fontSize: "1.07em",
-              padding: "6px 18px", boxShadow: "0 1px 7px #ff980019", cursor: "pointer"
-            }}
-            disabled={!results.length}
-          >
-            Export CSV
-          </button>
-          <button
-            className="btn"
-            onClick={handleExportJSON}
-            style={{
-              background: "#adcfd1", color: "#212433", border: "none",
-              borderRadius: 8, fontWeight: 700, fontSize: "1.07em",
-              padding: "6px 18px", boxShadow: "0 1px 7px #8fdce922", cursor: "pointer"
-            }}
-            disabled={!results.length}
-          >
-            Export JSON
-          </button>
-          <span style={{ color: "#9c9aa9", fontSize: ".97em" }}>
-            Download all findings for this batch.
-          </span>
+          <button className="btn" onClick={handleExportCSV} style={{
+            background: "#fde9a7", color:"#23272e", border:"none", borderRadius:8,
+            fontWeight:700, fontSize:"1.06em", padding:"6px 18px", boxShadow:"0 1px 7px #ff980019",cursor:"pointer"
+          }}>Export CSV</button>
+          <button className="btn" onClick={handleExportJSON} style={{
+            background: "#adcfd1", color:"#23272e", border:"none", borderRadius:8,
+            fontWeight:700, fontSize:"1.06em", padding:"6px 18px", boxShadow:"0 1px 7px #8fdce922", cursor:"pointer"
+          }}>Export JSON</button>
+          <span style={{color:"#a4a09c",fontSize:".96em"}}>Download results for all scanned domains.</span>
         </div>
       )}
-      {/* Notification for Demo mode export lockout */}
-      {results && results.length > 0 && sessionMode === "Demo" && (
+      {/* --- Demo mode disables export, warns --- */}
+      {results.length > 0 && sessionMode === "Demo" && (
         <div style={{
-          marginTop: 7, color: "#ffb400", fontSize: ".99em",
-          background: "#25221e55", borderRadius: 8, padding: "8px 20px"
+          marginTop:7, color:"#ffb400", fontSize:".99em",
+          background:"#25221e55", borderRadius:8,padding:"8px 20px"
         }}>
-          <b>Export features</b> are only available in <span style={{ color: "#42ffbe" }}>Pro mode</span> with a valid API key.
+          <b>Export</b> is unlocked only in <span style={{ color:"#42ffbe" }}>Pro mode</span> with valid API key.
         </div>
       )}
-      {/* --- Results Table --- */}
-      <ResultsTable rows={results} />
+      {/* --- Table --- */}
+      <ResultsTable results={results} loadingMap={loadingMap} />
       {/* --- Feedback Toast --- */}
-      <FeedbackToast msg={feedbackMsg} />
-      {/* --- Demo limitation info/footer --- */}
+      <FeedbackToast feedback={feedback} onClose={()=>setFeedback(null)} />
+      {/* --- Demo footer --- */}
       {sessionMode === "Demo" && (
         <p style={{
-          background: "#181a2070",
-          border: "1.5px dashed #ff980066",
-          borderRadius: 10,
-          color: "#ff9800",
-          padding: "6px 22px",
-          marginTop: 19,
-          fontSize: "0.97em"
+          background:"#181a2070", border:"1.5px dashed #ff980066", borderRadius:10,
+          color:"#ff9800", padding:"6px 22px", marginTop:19, fontSize:"0.97em"
         }}>
-          Some advanced features (multi-source graph, asset import/export, real-time subdomains, enhanced API types) require <b>Pro mode</b>.
+          Some advanced features (batch API, export, full graphs) require <b>Pro mode</b>.
           <br />
-          <span style={{ color: "#69ffa1" }}>To unlock export, batch, and graph features, switch to Pro mode with your API key.</span>
+          <span style={{ color: "#69ffa1" }}>To unlock batch, live recon and export, switch to Pro mode with your API key.</span>
         </p>
       )}
     </div>
