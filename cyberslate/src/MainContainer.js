@@ -169,13 +169,36 @@ const MODULE_COMPONENTS = {
   ),
   Settings: function SettingsPanel({ sessionMode }) {
     // Use AppContext for API key and setter
-    const { apiKey, setApiKey } = useContext(AppContext);
+    const { apiKey, setApiKey, isDemoApiKey } = useContext(AppContext);
 
     // For UX/security, let users toggle visibility
     const [showApiKey, setShowApiKey] = React.useState(false);
 
     return (
       <div>
+        {/* If using auto-generated demo key, show a clear UI notice */}
+        {sessionMode === "Pro" && isDemoApiKey && apiKey && apiKey.startsWith("demo_") && (
+          <div style={{
+            background: "linear-gradient(88deg, #ff980055 70%, #23272e 100%)",
+            border: "1.7px solid #ffbd4e",
+            borderRadius: 10,
+            color: "#ffefe2",
+            fontWeight: 650,
+            fontSize: "1.06em",
+            margin: "0 0 15px 0",
+            padding: "12px 20px",
+            boxShadow: "0 0 14px #ffb94f18"
+          }}>
+            <span role="img" aria-label="magic" style={{marginRight: "10px"}}>✨</span>
+            <span>
+              <b>Demo API key auto-generated.</b>
+              <br />
+              This is a randomly generated key for demo/testing only.
+              <br />
+              <span style={{ color: "#eed750" }}>To use real Recon APIs, paste a valid API key below.</span>
+            </span>
+          </div>
+        )}
         <div style={{ fontWeight: 600, marginBottom: 9, color: "var(--accent)" }}>
           Settings & Plugin Manager{" "}
           <span style={{
