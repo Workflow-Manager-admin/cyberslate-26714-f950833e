@@ -174,20 +174,25 @@ const MODULE_COMPONENTS = {
     // For UX/security, let users toggle visibility
     const [showApiKey, setShowApiKey] = React.useState(false);
 
-    // Provider selection options
+    // Recon Provider options
     const PROVIDER_OPTIONS = [
       { value: "hackertarget", label: "HackerTarget (Free, High-Capacity)" },
-      { value: "googledns", label: "Google DNS over HTTPS" }
+      { value: "googledns", label: "Google DNS over HTTPS" },
     ];
 
-    // Ensure reconProvider is always initialized from localStorage or default
+    // On mount, if reconProvider isn't set, initialize from localStorage or default
     useEffect(() => {
       if (!reconProvider) {
-        setReconProvider(window.localStorage.getItem("reconProvider") || "hackertarget");
+        const localStored = window.localStorage.getItem("reconProvider");
+        if (localStored && PROVIDER_OPTIONS.map(x=>x.value).includes(localStored)) {
+          setReconProvider(localStored);
+        } else {
+          setReconProvider("hackertarget");
+        }
       }
-    }, [reconProvider, setReconProvider]);
+    }, []); // Only run on mount
 
-    // Whenever provider changes, persist to localStorage
+    // When reconProvider changes, persist to localStorage
     useEffect(() => {
       if (reconProvider) {
         window.localStorage.setItem("reconProvider", reconProvider);
@@ -196,7 +201,7 @@ const MODULE_COMPONENTS = {
 
     return (
       <div>
-        {/* Recon Provider Selection (for Lookups) */}
+        {/* Recon Provider Selection */}
         <div style={{
           background: "linear-gradient(101deg, #23272e 80%, #21251c 100%)",
           border: "1.6px solid #4bbaec33",
@@ -253,7 +258,10 @@ const MODULE_COMPONENTS = {
                   name="reconProvider"
                   value={opt.value}
                   checked={reconProvider === opt.value}
-                  onChange={() => setReconProvider(opt.value)}
+                  onChange={() => {
+                    setReconProvider(opt.value);
+                    window.localStorage.setItem("reconProvider", opt.value); // Ensures instant sync
+                  }}
                   style={{
                     accentColor: "#38deff",
                     width: 18,
