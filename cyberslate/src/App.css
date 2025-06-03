@@ -362,14 +362,16 @@ body {
 }
 
 .content-area h2, .content-area h3 {
-  color: var(--accent);
-  text-shadow: 0 2px 7px #ff980010;
+  color: #ffac34;
+  text-shadow: 0 2.5px 13px #ffb94f22, 0 2px #ffd68711;
+  filter: saturate(1.22);
 }
 .content-area p {
   color: var(--text-secondary);
-  font-size: 1.04em;
+  font-size: 1.09em;
   margin-bottom: 0.8em;
-  transition: color 0.12s;
+  transition: color 0.13s;
+  text-shadow: 0 1px 7px #fe8c0029;
 }
 
 @media (max-width: 900px) {
