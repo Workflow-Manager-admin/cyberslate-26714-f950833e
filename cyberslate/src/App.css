@@ -164,8 +164,9 @@ body {
   margin-left: var(--sidebar-width);
   min-width: 0;
   height: 100vh;
-  background: var(--secondary-bg);
-  transition: background 0.18s;
+  background: linear-gradient(125deg, #0b0b11 86%, #161a1f 100%);
+  box-shadow: 0 0 22px 0 #ffac0022 inset;
+  transition: background 0.18s, box-shadow 0.16s;
 }
 
 /* TOPBAR (HEADER) */
