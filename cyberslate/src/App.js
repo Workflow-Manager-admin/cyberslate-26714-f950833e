@@ -5,10 +5,16 @@ import TabBar from "./TabBar";
 import MainContainer from "./MainContainer";
 import Logo from "./Logo";
 
-// Create AppContext for session info sharing
+/**
+ * AppContext for session info and API key sharing
+ * Includes sessionMode, setSessionMode, apiKey, and setApiKey.
+ */
+// PUBLIC_INTERFACE
 export const AppContext = React.createContext({
   sessionMode: "Demo",
   setSessionMode: () => {},
+  apiKey: "",
+  setApiKey: () => {},
 });
 
 // The module definitions (shared among Sidebar, TabBar)
