@@ -3,17 +3,12 @@ import { AppContext } from "./App";
 
 /**
  * PUBLIC_INTERFACE
- * ReconDashboard – Deeply enhanced recon panel for CyberSlate.
- * Features:
- *   - Batch input (multi-line) for multiple domains
- *   - Sanitation/validation of domains
- *   - Parallel recon fetches, with real API key if in Pro mode
- *   - Aggregated results (status/errors/quota/invalid key)
- *   - Modern expandable table, with skeleton loading and UX for edge cases
- *   - Export to CSV/JSON (with full headers, not in Demo)
- *   - UX adapts to Demo/Pro, blocks export in Demo, rich feedback for all states
- *   - Handles all feedback requirements: missing/invalid key, quota, sync UI
- * Now uses reconProvider from AppContext to select between HackerTarget and Google DNS for lookup modules.
+ * ReconDashboard
+ * Refactored to respond to config in AppContext and dynamically use either
+ * HackerTarget subdomain lookups or Google DNS queries per user selection (Settings).
+ * - Runs recon via selected provider (no API key needed for these)
+ * - Parses, displays, and handles all UX and error states distinctively
+ * - Upgraded dark, modern UI for a premium recon experience
  */
 
 const DEMO_DATA = [
