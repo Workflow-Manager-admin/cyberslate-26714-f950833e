@@ -397,43 +397,86 @@ function ReconDashboard({ sessionMode }) {
 
     // Pro mode: real API queries (parallel)
     let allResults = [];
-    let backend = "https://api.cyberrecon.ex/v1/recon/domain";
+
+    /**
+     * Attempts to detect API provider by the apiKey pattern or allow override.
+     * Returns {provider: 'securitytrails'|'shodan'|'censys'|'unknown', endpoint, headers callback}
+     * For now, default to SecurityTrails if pattern matches, otherwise unknown.
+     */
+    function detectProvider(apiKey) {
+      // SecurityTrails: 40-char hex, sometimes with dashes
+      if (/^[a-z0-9]{40}$/i.test(apiKey)) {
+        return {
+          provider: "securitytrails",
+          endpoint: (domain) => `https://api.securitytrails.com/v1/domain/${encodeURIComponent(domain)}/subdomains`,
+          headers: (key) => ({
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "APIKEY": key,
+          }),
+          process: async (resp) => {
+            // {subdomains:[], host:string}
+            if (!resp.ok)
+              throw new Error(`SecurityTrails error: ${resp.status} ${resp.statusText}`);
+            const data = await resp.json();
+            if (!data || !Array.isArray(data.subdomains)) throw new Error("Malformed response");
+            return {
+              summary: `Found ${data.subdomains.length} subdomains via SecurityTrails`,
+              hosts: data.subdomains.map(sub => `${sub}.${domain}`),
+              openPorts: [],
+              fromProvider: "SecurityTrails"
+            };
+          }
+        };
+      }
+      // You could add more provider auto-detection here.
+      // Fallback: Unknown/Generic API handler
+      return {
+        provider: "unknown",
+        endpoint: (domain) => null,
+        headers: (key) => ({}),
+        process: async () => { throw new Error("Unknown or unsupported API key/provider for direct client-side recon."); }
+      };
+    }
+
+    // Only allow public CORS-friendly APIs (SecurityTrails is CORS-allowed)
+    const providerInfo = detectProvider(apiKey);
 
     await Promise.all(
       to_scan.map(async (domain, idx) => {
         setLoadingMap(lmap => ({ ...lmap, [domain]: true }));
         let result = {domain, data:null, status:"", error:"", quota:""};
         try {
-          const resp = await fetch(`${backend}?domain=${encodeURIComponent(domain)}`,
-            {
-              headers: {
-                Accept: "application/json",
-                Authorization: `Bearer ${apiKey}`
-              }
-            }
-          );
-          // API key/invalid/quota feedbacks
-          if (resp.status === 401 || resp.status === 403) {
-            result.status = "Auth Error";
-            result.error = "API key invalid or expired.";
-            result.quota = "";
-            setFeedback({type:"error", text: `API key rejected by server (domain: ${domain}).`});
-          } else if (resp.status === 429) {
-            result.status = "Quota Exceeded";
-            result.quota = "Quota exceeded";
-            setFeedback({type:"warning", text:`API quota/limit exceeded for ${domain}.`});
-          } else if (!resp.ok) {
+          if (providerInfo.provider === "unknown") {
             result.status = "Error";
-            result.error = `Recon failed: ${resp.status} ${resp.statusText}`;
-            setFeedback({type:"error", text:`Recon failed for ${domain} (${resp.status}).`});
-          } else {
-            let rdata = await resp.json();
-            if (!rdata || typeof rdata !== "object") {
-              result.status = "Malformed";
-              result.error = "Malformed/empty API response.";
+            result.error = "API key not recognized or unsupported for direct browser integration. Please use a SecurityTrails API key.";
+            setFeedback({type:"error", text:"Unknown or unsupported API provider for direct integration. Only SecurityTrails is supported in this build."});
+          } else if (providerInfo.provider === "securitytrails") {
+            const resp = await fetch(providerInfo.endpoint(domain),
+              { headers: providerInfo.headers(apiKey) }
+            );
+            // SecurityTrails: 401 Unauthorized, 429 quota, etc
+            if (resp.status === 401 || resp.status === 403) {
+              result.status = "Auth Error";
+              result.error = "API key invalid or expired.";
+              result.quota = "";
+              setFeedback({type:"error", text: `API key rejected by SecurityTrails (domain: ${domain}).`});
+            } else if (resp.status === 429) {
+              result.status = "Quota Exceeded";
+              result.quota = "SecurityTrails quota exceeded";
+              setFeedback({type:"warning", text:`API quota/limit exceeded for ${domain}.`});
+            } else if (!resp.ok) {
+              result.status = "Error";
+              result.error = `Recon failed: ${resp.status} ${resp.statusText}`;
+              setFeedback({type:"error", text:`Recon failed for ${domain} (${resp.status}).`});
             } else {
-              result.status = "Success";
-              result.data = {...rdata, domain};
+              try {
+                result.status = "Success";
+                result.data = await providerInfo.process(resp, domain);
+              } catch(e) {
+                result.status = "Malformed";
+                result.error = "Malformed/empty API response.";
+              }
             }
           }
         } catch (ex) {
