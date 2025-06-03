@@ -15,6 +15,7 @@ export const AppContext = React.createContext({
   setSessionMode: () => {},
   apiKey: "",
   setApiKey: () => {},
+  isDemoApiKey: false,
   reconProvider: "hackertarget",
   setReconProvider: () => {},
 });
@@ -33,7 +34,8 @@ const MODULES = [
 
 /**
  * PUBLIC_INTERFACE
- * App component manages sessionMode, API key, and propagates via AppContext.
+ * App component manages sessionMode, API key, reconProvider,
+ * and propagates via AppContext.
  */
 function App() {
   // Session (Demo/Pro); initialize from localStorage else default to Demo
@@ -50,6 +52,22 @@ function App() {
     // true if localStorage key is generated, false if user-supplied or empty
     return window.localStorage.getItem("isDemoApiKey") === "true";
   });
+
+  // Recon provider state (HackerTarget or Google DNS, default to HackerTarget)
+  const [reconProvider, setReconProviderInternal] = useState(() => {
+    return window.localStorage.getItem("reconProvider") || "hackertarget";
+  });
+  // On change, save to localStorage
+  useEffect(() => {
+    if (reconProvider) {
+      window.localStorage.setItem("reconProvider", reconProvider);
+    }
+  }, [reconProvider]);
+  // Actual setter function
+  const setReconProvider = (provider) => {
+    setReconProviderInternal(provider);
+    window.localStorage.setItem("reconProvider", provider);
+  };
 
   // Save sessionMode on change
   useEffect(() => {
@@ -95,7 +113,7 @@ function App() {
       window.localStorage.setItem("isDemoApiKey", "true");
     }
     // If switching back to Demo, keep user key (don't clear)
-  // eslint-disable-next-line
+    // eslint-disable-next-line
   }, [sessionMode]); // only run on sessionMode
 
   // Setter exposed to context (if you want to do further sanitization, add here)
@@ -143,7 +161,7 @@ function App() {
           const nextIdx = idx > 0 ? idx - 1 : 0;
           setActiveTab(newTabs[nextIdx].name);
         } else {
-          setActiveTab(""); // No tab open
+          setActiveTab("");
         }
       }
     },
@@ -156,8 +174,10 @@ function App() {
     setSessionMode,
     apiKey,
     setApiKey,
-    isDemoApiKey
-  }), [sessionMode, setSessionMode, apiKey, isDemoApiKey]); // setApiKey is stable
+    isDemoApiKey,
+    reconProvider,
+    setReconProvider,
+  }), [sessionMode, setSessionMode, apiKey, isDemoApiKey, reconProvider]); // setApiKey/setReconProvider are stable
 
   return (
     <AppContext.Provider value={appContextValue}>
