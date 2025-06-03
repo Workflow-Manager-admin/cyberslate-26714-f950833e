@@ -16,18 +16,23 @@
 body {
   margin: 0;
   font-family: 'Inter', 'Roboto', 'Helvetica', 'Arial', sans-serif;
-  background: var(--secondary-bg);
+  background: linear-gradient(120deg, #0c0f15 58%, #181a20 100%);
   color: var(--text-color);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   letter-spacing: 0.005em;
   transition: background 0.24s;
+  min-height: 100vh;
+  background-attachment: fixed;
+  box-shadow: 0 0 160px 0 #ffae0022 inset;
 }
 
 .app-root {
   display: flex;
   height: 100vh;
   background: var(--secondary-bg);
+  background-image: radial-gradient(ellipse 110% 120% at 80% 20%, #ffcc0022 1%, #05050530 45%, #181a20 100%);
+  box-shadow: 0 0 120px 0 #ffa60010 inset;
 }
 
 /* SIDEBAR STYLES */
