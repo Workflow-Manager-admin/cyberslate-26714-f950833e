@@ -3,6 +3,7 @@ import "./App.css";
 import Sidebar from "./Sidebar";
 import TabBar from "./TabBar";
 import MainContainer from "./MainContainer";
+import Logo from "./Logo";
 
 // The module definitions (shared among Sidebar, TabBar)
 const MODULES = [
@@ -71,8 +72,7 @@ function App() {
       <div className="main-layout">
         <header className="topbar">
           <div className="topbar-brand">
-            <span className="topbar-logo-symbol" aria-label="CyberRecon Suite logo" />
-            CyberRecon Suite
+            <Logo size={29} fontSize="1.05rem" gap={10} hideText={false} />
           </div>
           <div className="topbar-session">
             Session: <span style={{ color: "var(--accent)" }}>Demo User</span>
