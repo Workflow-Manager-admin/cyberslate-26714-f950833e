@@ -11,62 +11,11 @@ import { AppContext } from "./App";
  */
 
 // Example module panels updated to display and use sessionMode.
+import ReconDashboard from "./ReconDashboard";
 const MODULE_COMPONENTS = {
   // PUBLIC_INTERFACE
   Recon: ({ sessionMode }) => (
-    <div>
-      <div
-        style={{
-          fontSize: "1.22rem",
-          fontWeight: 600,
-          marginBottom: 14,
-          color: "var(--accent)",
-        }}
-      >
-        Recon Dashboard
-        <span
-          style={{
-            marginLeft: 14,
-            fontWeight: 500,
-            fontSize: "0.97rem",
-            color: "var(--text-secondary)",
-            padding: "3px 14px",
-            borderRadius: 10,
-            background:
-              sessionMode === "Demo"
-                ? "rgba(255,255,255,0.08)"
-                : "rgba(255,152,0,0.15)",
-            border:
-              sessionMode === "Pro"
-                ? "1.5px solid var(--accent)"
-                : "1.5px solid #ffffff22",
-            marginTop: -4,
-            marginBottom: -4,
-            marginRight: 0,
-          }}
-          aria-label={`Current mode: ${sessionMode}`}
-        >
-          {sessionMode} Mode
-        </span>
-      </div>
-      <p style={{ color: "var(--text-secondary)", margin: 0 }}>
-        Here you'll find recon tools such as domain input, Amass visualizations, Masscan results, and more.
-      </p>
-      {/* Example: Conditionally show feature limitation */}
-      {sessionMode === "Demo" && (
-        <p style={{
-          background: "#181a2070",
-          border: "1.5px dashed #ff980066",
-          borderRadius: 10,
-          color: "#ff9800",
-          padding: "6px 22px",
-          marginTop: 16,
-          fontSize: "0.97em"
-        }}>
-          Some advanced features are available in <b>Pro mode</b>.
-        </p>
-      )}
-    </div>
+    <ReconDashboard sessionMode={sessionMode} />
   ),
   Scanner: ({ sessionMode }) => (
     <div>
