@@ -402,16 +402,18 @@ body {
 /* CUSTOM SCROLLBAR (rounded, subtle) */
 ::-webkit-scrollbar {
   width: 9px;
-  background: #14161a;
-  border-radius: 5px;
+  background: #0a0b12;
+  border-radius: 7px;
 }
 ::-webkit-scrollbar-thumb {
-  background: #282a33;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px 0 #ff980016;
+  background: linear-gradient(93deg, #181920 72%, #14121c 100%);
+  border-radius: 10px;
+  box-shadow: 0 2px 14px 0 #ffb94f22;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #383a40;
+  background: #25232a;
+  border-radius: 10px;
+  filter: brightness(1.18);
 }
 
 @media (max-width: 600px) {
