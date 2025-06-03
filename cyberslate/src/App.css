@@ -38,19 +38,22 @@ body {
 /* SIDEBAR STYLES */
 .sidebar {
   width: var(--sidebar-width);
-  background: var(--primary-bg);
-  box-shadow: var(--shadow-elevated);
+  background: linear-gradient(130deg, #0a0a0e 85%, #181c19 100%);
+  box-shadow: 0 10px 36px 0 #0f0c1c86, 0 1.5px 0 0 #ffa73230;
   display: flex;
   flex-direction: column;
   justify-content: flex-start;
   align-items: stretch;
-  border-right: 1.5px solid var(--border-color);
+  border-right: 2px solid #ffb54908;
   padding-top: var(--topbar-height);
   position: fixed;
   left: 0;
   top: 0;
   height: 100%;
   z-index: 130;
+  backdrop-filter: blur(2.2px) brightness(1.03);
+  background-blend-mode: screen;
+  transition: background 0.19s, box-shadow 0.23s;
 }
 
 .sidebar-nav {
