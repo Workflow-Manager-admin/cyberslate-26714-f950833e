@@ -110,7 +110,9 @@ function App() {
   const appContextValue = useMemo(() => ({
     sessionMode,
     setSessionMode,
-  }), [sessionMode, setSessionMode]);
+    apiKey,
+    setApiKey,
+  }), [sessionMode, setSessionMode, apiKey]); // setApiKey is stable
 
   return (
     <AppContext.Provider value={appContextValue}>
