@@ -276,38 +276,40 @@ body {
 
 /* TABBAR */
 .tabbar {
-  background: var(--primary-bg);
-  background: linear-gradient(87deg, #2a2c37 68%, #22252b 100%);
-  box-shadow: 0 2px 12px 0 #19151210;
-  border-bottom: 1.3px solid var(--border-color);
+  background: linear-gradient(92deg, #111216 83%, #191516 100%);
+  box-shadow: 0 2.5px 20px 0 #ff98001e, 0 2px 16px 0 #0e0e1fa5;
+  border-bottom: 2.2px solid #ffae0025;
+  filter: saturate(1.15);
 }
 .tabbar-tab {
   margin-right: 4px;
-  border-radius: 10px 10px 0 0;
+  border-radius: 13px 13px 0 0;
   background: none;
-  box-shadow: none;
+  box-shadow: 0 0.5px 0 #ffa60023 inset;
   border: none;
-  transition: color 0.22s, background 0.16s, border-bottom 0.15s, box-shadow 0.2s, transform 0.13s;
+  transition: color 0.22s, background 0.15s, border-bottom 0.16s, box-shadow 0.2s, transform 0.13s;
   cursor: pointer;
   outline: none;
   position: relative;
   z-index: 1;
-  min-width: 92px;
+  min-width: 98px;
   user-select: none;
 }
 .tabbar-tab[aria-selected="true"] {
-  color: var(--accent);
-  background: linear-gradient(90deg, #181a20 75%, #ff98001a 100%);
-  border-bottom: 3.3px solid var(--accent);
-  box-shadow: 0 3px 11px 0 #ff980010;
-  transform: scale(1.07);
+  color: #fbaf58;
+  background: linear-gradient(93deg, #090a0e 75%, #ff980027 100%);
+  border-bottom: 4.5px solid #ffa642;
+  box-shadow: 0 6px 17px 0 #ff980010, 0 1px 11px 0 #ffae0033 in, 0 3px #fffb02a0;
+  transform: scale(1.08);
+  filter: drop-shadow(0 2px 8px #ffae0033);
 }
 .tabbar-tab:focus-visible, .tabbar-tab:hover {
-  color: #fff !important;
-  background: linear-gradient(91deg, #2a2c37 60%, #ff980022 100%) !important;
-  box-shadow: 0 4px 14px 0 #19151224;
-  border-bottom: 3.3px solid var(--accent) !important;
+  color: #fffceb !important;
+  background: linear-gradient(88deg, #17181c 60%, #ff980044 100%) !important;
+  box-shadow: 0 7px 23px 0 #19151244, 0 0 0 2px #ff980025;
+  border-bottom: 4.5px solid var(--accent) !important;
   z-index: 2;
+  filter: drop-shadow(0 2px 9px #ffb40033);
 }
 
 /* Tabbar Close Button (Animated "X" on hover/focus) */
